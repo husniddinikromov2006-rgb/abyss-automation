@@ -1,10 +1,13 @@
 {
-    "uploaded_ids": [
-        "mariana_part1",
-        "creature_challenger_crushed"
-    ],
-    "video_stats": {
-        "mariana_part1": "AFJJBn9EW0Y",
-        "creature_challenger_crushed": "YwS3bFZr4Ew"
-    }
+  "uploaded_ids": [
+    "mariana_part1",
+    "creature_challenger_crushed",
+    "military_slaughter_2018_447"
+  ],
+  "video_stats": {
+    "mariana_part1": "AFJJBn9EW0Y",
+    "creature_challenger_crushed": "YwS3bFZr4Ew"
+  },
+  "pending_part2": [],
+  "favorite_category": "ww2_military_horror"
 }
