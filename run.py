@@ -31,10 +31,8 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-PEXELS_API_KEY = os.environ.get(
-    "PEXELS_API_KEY",
-    "EdoUks31ZIxOOLAE35gYGpgiP3ikgDFZBiTlmDEievg9OUnR87AGxoLX"
-)
+# Kalit faqat GitHub Secrets'dan xavfsiz olinadi
+PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
@@ -108,7 +106,6 @@ TITAN_BATTLES = [
     }
 ]
 
-# FAQAT ENG DAHSHATLI, HARBIY VA TISHLAR BILAN TO'LA QIDIRUVLAR
 HORROR_QUERY_POOLS = [
     [
         "scary monster underwater dark horror teeth",
@@ -194,14 +191,13 @@ def sync_and_analyze_stats(youtube, history):
 
     best_cat = max(categories, key=categories.get)
     history["favorite_category"] = best_cat
-    print(f"🩸 Tomoshabinlar eng ko'p vahima bilan tomosha qilgan yo'nalish: {best_cat.upper()}")
+    print(f"🩸 Eng ko'p ko'rilgan yo'nalish: {best_cat.upper()}")
     return history
 
 def pick_next_story(history):
     pending = history.get("pending_part2", [])
     ready_for_part2 = [p for p in pending if p.get("likes", 0) >= LIKE_THRESHOLD_FOR_PART2]
 
-    # 100 ta layk to'plangan bo'lsa, Part 2 fojiasi chiqadi
     if ready_for_part2:
         chosen = ready_for_part2[0]
         history["pending_part2"].remove(chosen)
@@ -232,13 +228,11 @@ def pick_next_story(history):
     battle = random.choice(matching) if matching else random.choice(TITAN_BATTLES)
 
     zone = random.choice(HORROR_ZONES)
-    # Tarixiy urushlar yillari (WW2 dan tortib Sovuq urush va hozirgacha)
     year = random.choice([1942, 1944, 1956, 1968, 1974, 1986, 1991, 2003, 2018])
 
     is_standalone = random.choice([True, False])
 
     if is_standalone:
-        # Bitta qismda tugaydigan qora harbiy voqea
         story_id = f"military_slaughter_{year}_{random.randint(100, 999)}"
         title = f"WAR ARCHIVE {year}: {battle['titan_a']} vs {battle['titan_b']} 🚨☠️ #Shorts"
         script = (
@@ -259,7 +253,6 @@ def pick_next_story(history):
             "is_standalone": True
         }
     else:
-        # Part 1 zanjiri
         story_id = f"war_clash_{year}_part1"
         title = f"DECLASSIFIED {year}: {battle['titan_a']} Encounter (Part 1) 🚨🩸 #Shorts"
         script = (
@@ -286,35 +279,40 @@ def pick_next_story(history):
         }
 
 def generate_long_form_story():
-    """Haftasiga 2 marta chiqadigan 3 daqiqalik yirik harbiy maxluqlar to'qnashuvi."""
+    """Barcha mavzularni birlashtirgan 3 daqiqalik qonli urush va titanlar qirg'ini."""
     zone = random.choice(HORROR_ZONES)
     b1 = random.choice(TITAN_BATTLES)
     b2 = random.choice(TITAN_BATTLES)
+    year = random.choice([1944, 1968, 1986, 2018])
 
-    title = f"CLASSIFIED: The Secret Naval Slaughter in the Mariana Trench (Full 3-Minute Tape) 🚨☠️"
+    title = f"WW2 DECLASSIFIED: {b1['titan_a']} vs {b2['titan_b']} Bloodbath ({year}) ☠️🔥"
     script = (
-        f"Warning: The following audio-visual logs are classified Top Secret under maritime warfare protocols. "
-        f"For over fifty years, world superpowers buried the slaughter that took place in {zone['name']}. "
-        f"During classified naval operations, reconnaissance hydrophones recorded {b1['intro']}. "
-        f"The ocean became an underwater slaughterhouse as {b1['violence']}. "
-        f"Within forty minutes, secondary emergency alarms blared across the fleet: {b2['intro']}. "
-        f"The entities collided in an orgy of bone-shattering violence: {b2['violence']}! "
-        f"Entire naval battle groups were obliterated from beneath, dragged past crushing depth. "
-        f"{b1['secret']}, while {b2['secret']}. "
-        f"The abyss is armed with predators far deadlier than nuclear arsenals. "
-        f"Subscribe to Abyss Secrets before these unredacted war tapes are deleted forever."
+        f"Emergency maritime warning. The unredacted military audio files you are about to hear were classified Top Secret under treason protocols. "
+        f"In {year}, deep inside {zone['name']}, an ultra-quiet combat battle group detected massive biological movement beneath the hull. "
+        f"Within seconds, total catastrophe struck as {b1['intro']}. "
+        f"Sonar arrays overloaded with ultrasonic war cries before {b1['violence']}! "
+        f"Steel hulls buckled like aluminum under hundreds of tons of crushing jaws, {b1['aftermath']}. "
+        f"As rescue subs descended into the blood-filled abyssal waters, secondary tactical radars went haywire: {b2['intro']}. "
+        f"The two oceanic titans collided in an apocalyptic slaughter: {b2['violence']}! "
+        f"Naval reactors cracked open, boiling the freezing trench in toxic bio-radiation as limbs, tentacles, and shredded armor plates rained into the void. "
+        f"{b1['secret']}. Meanwhile, {b2['secret']}. "
+        f"The Pentagon and global naval commands buried this footage, falsely reporting the sinking as boiler explosions. "
+        f"The abyss is not empty—it is an active war zone of ancient apex predators. "
+        f"Subscribe immediately to Abyss Secrets to unlock the rest of the declassified black-box archives."
     )
     queries = [
         "scary monster underwater dark horror teeth",
         "submarine emergency alarm red flashing dark",
         "underwater warship explosion dark ocean",
-        "giant monster jaws underwater terrifying",
-        "naval submarine sinking emergency dark horror",
+        "giant kraken tentacles crushing ship horror",
+        "terrifying deep sea predator jaws attacking",
         "underwater dark red blood horror scary",
+        "naval submarine sinking emergency dark horror",
+        "sonar display dark red panic emergency",
         "deep sea monster fighting underwater horror"
     ]
     return {
-        "id": f"long_naval_carnage_{int(time.time())}",
+        "id": f"mega_war_carnage_{int(time.time())}",
         "title": title,
         "script": script,
         "queries": queries,
