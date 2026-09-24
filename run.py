@@ -1,126 +1,306 @@
+# ============================================================
+# ABYSS SECRETS — SMART CLOUD ENGINE v4
+# 100% GITHUB ACTIONS MOSLASHTIRILGAN VARIANT
+# ============================================================
+
 import os
+import sys
 import json
 import random
-import sys
 import asyncio
+import textwrap
+import time
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
+from pathlib import Path
+
 import requests
 import edge_tts
-from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
+
+from moviepy.editor import (
+    VideoFileClip,
+    AudioFileClip,
+    concatenate_videoclips,
+    CompositeVideoClip
+)
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-# ==================== SOZLAMALAR VA KALITLAR ====================
+# ============================================================
+# SOZLAMALAR
+# ============================================================
+
+# Pexels API Key (agar muhitda bo'lmasa, zaxira kalit ishlatiladi)
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "EdoUks31ZIxOOLAE35gYGpgiP3ikgDFZBiTlmDEievg9OUnR87AGxoLX")
+
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
-    "https://www.googleapis.com/auth/youtube.readonly"
+    "https://www.googleapis.com/auth/youtube.readonly",
 ]
+
 HISTORY_FILE = "history.json"
-US_TIMEZONE = ZoneInfo("America/New_York")
+OUT_DIR = Path("abyss_output")
+OUT_DIR.mkdir(exist_ok=True)
 
-# ==================== YUQORI RETENTION & ENGAGEMENT SSENARIYLARI ====================
-SHORTS_STORIES = [
+WIDTH = 1080
+HEIGHT = 1920
+FPS = 24
+VOICE = "en-US-ChristopherNeural"
+MIN_SHORT_SECONDS = 50
+PART2_LIKE_GOAL = 500
+
+# ============================================================
+# KONTENT BAZASI (OCEAN, COSMOS, US HISTORY, COLD WAR)
+# ============================================================
+
+SHORTS = [
+    # ---------------- OCEAN ----------------
     {
-        "id": "creature_challenger_crushed",
-        "category": "creature",
-        "series": "Mariana Anomaly",
-        "part": 1,
-        "min_likes": 500,
-        "title": "It Severed a Solid Titanium Submarine at 36,000 Feet ⚠️ #Shorts #AbyssSecrets",
-        "text": "Do not watch this alone in the dark. In 2011, an autonomous research drone sank past thirty-two thousand feet into the Mariana Trench. Suddenly, its acoustic telemetry detected a colossal biological entity measuring over eighty meters, circling the vessel. Within seconds, exterior microphones logged a deafening sub-bass frequency, followed by the sickening sound of three-inch reinforced titanium snapping like a twig. When surface vessels retrieved the snapped tether, the forward titanium cabin was completely gone, bearing massive serrated bite marks dripping with unknown bioluminescent enzymes. Marine acoustic labs confirmed no known living animal could exert that bite force at that depth. Did they disturb a prehistoric leviathan? Once this video reaches 500 likes, I will play the unedited black box audio frequency in Part 2. Hit subscribe and drop your theory in the comments right now.",
-        "query": "deep sea dark underwater trench monster scary ocean"
+        "id": "ocean_most_unexplored",
+        "topic": "ocean",
+        "title": "95% of the Ocean Is Still a Mystery 🌊 #Shorts",
+        "hook": "We have mapped the Moon better than parts of our own ocean.",
+        "script": (
+            "We have mapped the Moon better than parts of our own ocean. "
+            "Thousands of meters below the surface, sunlight disappears, "
+            "pressure becomes extreme, and entire ecosystems survive without sunlight. "
+            "Scientists keep finding creatures and environments that look almost alien. "
+            "And the deeper we go, the more questions appear. "
+            "So what do you think is still hiding down there?"
+        ),
+        "queries": [
+            "deep ocean underwater mysterious",
+            "deep sea creature dark",
+            "underwater trench expedition",
+            "bioluminescent jellyfish ocean",
+            "submarine deep ocean"
+        ],
+        "cta": "Follow Abyss Secrets for the next dive into the unknown."
     },
     {
-        "id": "cia_gateway_astral",
-        "category": "declassified",
-        "series": "Project Gateway",
-        "part": 1,
-        "min_likes": 500,
-        "title": "Declassified CIA File Confirms Human Soul Can Leave Body ⚠️ #Shorts #SecretFiles",
-        "text": "This is official CIA document CIA-RDP96-00788R001700210016-5. In 1983, the Central Intelligence Agency and US Army Intelligence compiled an extensive scientific study titled Analysis and Assessment of Gateway Process. The document officially confirms that human consciousness is not biological, but a localized energy matrix capable of projecting beyond space and time. Using synchronized hemispheric brainwave frequencies, test subjects separated their consciousness from their physical bodies, traveling through solid walls and accurately reporting classified Soviet coordinates in real time. Page twenty-five was confiscated and kept classified by the Department of Defense for forty years. If this video reaches 500 likes, we decode the missing page twenty-five. Subscribe to Abyss Secrets right now so you do not miss it, and tell me: have you ever experienced an astral projection?",
-        "query": "secret documents classified room glowing vintage laboratory"
+        "id": "ocean_bioluminescence",
+        "topic": "ocean",
+        "title": "The Ocean Lights Up in Total Darkness 😳🌊 #Shorts",
+        "hook": "Imagine turning off every light... and the ocean starts glowing.",
+        "script": (
+            "Imagine turning off every light and the ocean starts glowing. "
+            "Far below the surface, many organisms produce their own light through bioluminescence. "
+            "Some use it to attract prey. Others use it to confuse predators or communicate. "
+            "In complete darkness, tiny flashes can look like an underwater galaxy. "
+            "And this is happening all around us, far below the waves."
+        ),
+        "queries": [
+            "bioluminescent plankton ocean",
+            "glowing jellyfish deep sea",
+            "deep sea blue lights",
+            "underwater night ocean",
+            "bioluminescent sea creature"
+        ],
+        "cta": "Subscribe if you want to see what lives beneath the surface."
     },
     {
-        "id": "creature_point_nemo_nest",
-        "category": "creature",
-        "series": "Point Nemo",
-        "part": 1,
-        "min_likes": 500,
-        "title": "Satellite Images Captured Massive Movement at Point Nemo 🌊 #Shorts #OceanHorror",
-        "text": "Point Nemo is the most isolated location on planet Earth, where the closest humans are astronauts aboard the International Space Station. In late 2022, military satellites detected an inexplicable thermal anomaly spreading across forty square miles of open ocean. Naval hydrophone arrays simultaneously recorded ultra-low frequency biological rhythms echoing from two miles beneath the seafloor. Even more terrifying, deep-sea research buoys deployed in the sector suddenly went silent one after another, their reinforced cables cleanly severed from below. Marine biologists cannot explain what organic organism could generate that much heat in freezing oceanic abysses. Drop your honest thoughts in the comments. When we hit 500 likes, Part 2 drops with the recovered sonar waveforms. Hit that subscribe button now.",
-        "query": "stormy dark ocean waves giant whirlpool deep underwater"
+        "id": "ocean_mariana_pressure",
+        "topic": "ocean",
+        "title": "What Happens at the Bottom of the Mariana Trench? 🌊 #Shorts",
+        "hook": "At the deepest ocean trenches, the pressure is almost unimaginable.",
+        "script": (
+            "At the deepest ocean trenches, the pressure is almost unimaginable. "
+            "The Mariana Trench reaches nearly eleven kilometers below sea level. "
+            "Down there, there is no sunlight, the water is near freezing, "
+            "and the pressure is enormous. Yet life still exists. "
+            "Tiny organisms and strange animals have adapted to conditions that seem impossible. "
+            "The real mystery is not whether life can survive there, but how much we still have not seen."
+        ),
+        "queries": [
+            "Mariana trench deep sea",
+            "deep ocean trench submarine",
+            "hadal zone underwater",
+            "deep sea creature",
+            "ocean abyss"
+        ],
+        "cta": "Abyss Secrets — deeper than the surface."
+    },
+
+    # ---------------- COSMOS ----------------
+    {
+        "id": "cosmos_black_hole",
+        "topic": "cosmos",
+        "title": "What Would Happen If You Got Near a Black Hole? 🕳️🌌 #Shorts",
+        "hook": "A black hole does not need to touch you to change your view of time.",
+        "script": (
+            "A black hole does not need to touch you to change your view of time. "
+            "Its gravity is so strong that light itself can be trapped beyond the event horizon. "
+            "From far away, an object approaching the horizon can appear to slow down dramatically. "
+            "Near the black hole, space and time behave in ways that challenge everyday intuition. "
+            "And the strangest part is that we still cannot directly see the inside."
+        ),
+        "queries": [
+            "black hole space cinematic",
+            "galaxy black hole",
+            "deep space stars",
+            "accretion disk black hole",
+            "cosmic nebula"
+        ],
+        "cta": "Follow Abyss Secrets for more journeys into the unknown."
     },
     {
-        "id": "pentagon_northwoods_terror",
-        "category": "declassified",
-        "series": "Operation Northwoods",
-        "part": 0,
-        "min_likes": 0,
-        "title": "Declassified: The Pentagon's Dark False Flag Plot ⚠️ #Shorts #HistoryMystery",
-        "text": "In 1997, the White House was forced to declassify a top-secret memorandum from 1962, officially signed by the Chairman of the Joint Chiefs of Staff. Known as Operation Northwoods, the plan proposed staging horrific acts of terrorism on American soil against American citizens to justify starting a foreign war. The declassified pages detail plans to hijack commercial airliners, sink US military naval vessels, and detonate explosives in major cities, framing foreign adversaries for the carnage. President John F. Kennedy personally rejected the horrifying operation. What other signed operations are still locked away inside military vaults? Tell me your thoughts in the comments below, share this video with a friend, and make sure to subscribe to Abyss Secrets for raw, declassified history.",
-        "query": "military bunker dark corridor old files classified vintage"
+        "id": "cosmos_space_silence",
+        "topic": "cosmos",
+        "title": "Why Is Space So Silent? 🌌 #Shorts",
+        "hook": "The universe can explode with unimaginable energy... and you would hear nothing.",
+        "script": (
+            "The universe can release unimaginable amounts of energy, yet space itself is silent. "
+            "Sound needs a medium such as air or water to travel. "
+            "Most of space is an almost perfect vacuum, so ordinary sound waves cannot move through it. "
+            "Astronomers can still detect other signals, including radio waves and light. "
+            "So the universe is not truly quiet — we simply need different senses to listen."
+        ),
+        "queries": [
+            "deep space galaxy stars",
+            "astronaut space cinematic",
+            "nebula universe",
+            "satellite earth space",
+            "cosmic stars"
+        ],
+        "cta": "If space fascinates you, stay with Abyss Secrets."
     },
     {
-        "id": "creature_baltic_sea_anomaly",
-        "category": "creature",
-        "series": "Baltic Sea Anomaly",
-        "part": 1,
-        "min_likes": 500,
-        "title": "Divers Touched It at the Bottom of the Sea... Then Electronics Died 🌊 #Shorts",
-        "text": "Three hundred feet beneath the Baltic Sea lies a massive, geometric disc-shaped structure spanning two hundred feet wide. In 2012, professional deep-sea divers descended to investigate the object directly. As soon as the divers approached within six hundred feet, their satellite phones, digital cameras, and underwater sonar equipment shut down simultaneously. When they swam away, everything turned back on. Samples chiseled from the object revealed it is composed of limonite and iron oxides that geologists say cannot be formed by natural marine processes. Beneath the structure, sonar detected a nine-hundred-foot runway-like gouge on the seafloor, as if a craft crashed and slid across the bedrock. Hit subscribe right now and like the video. If we reach 500 likes, Part 2 covers the private military contractor intervention. What do you think it is?",
-        "query": "underwater ancient ruins deep sea sunken ship mysterious"
+        "id": "cosmos_neutron_star",
+        "topic": "cosmos",
+        "title": "A Star Can Become Smaller Than a City 🤯🌌 #Shorts",
+        "hook": "Imagine compressing more mass than the Sun into something city-sized.",
+        "script": (
+            "Imagine compressing more mass than the Sun into an object roughly the size of a city. "
+            "That is the extreme world of neutron stars. "
+            "They can form after massive stars explode and their cores collapse. "
+            "The remaining matter becomes extraordinarily dense. "
+            "Some neutron stars rotate rapidly and send beams of radiation through space like cosmic lighthouses."
+        ),
+        "queries": [
+            "neutron star space",
+            "supernova explosion",
+            "pulsar space",
+            "galaxy stars cinematic",
+            "deep universe"
+        ],
+        "cta": "Subscribe for the next cosmic mystery."
+    },
+
+    # ---------------- U.S. HISTORY ----------------
+    {
+        "id": "us_history_d_day",
+        "topic": "us_history",
+        "title": "June 6, 1944: The Normandy Secret Plan 🇺🇸 #Shorts",
+        "hook": "Before sunrise, the single greatest airborne invasion in history began.",
+        "script": (
+            "Before sunrise on June 6, 1944, Allied forces began the Normandy invasion, "
+            "known as D-Day and part of Operation Overlord. The operation was a massive "
+            "multinational effort and opened the Western Front in Europe. Before the landing, "
+            "weather, timing and planning created enormous uncertainty. General Dwight Eisenhower "
+            "even prepared a secret statement accepting responsibility if the invasion failed."
+        ),
+        "queries": [
+            "historical military aerial",
+            "old military map Europe",
+            "1940s vintage aircraft",
+            "historic ocean coastline",
+            "vintage military landscape"
+        ],
+        "cta": "Follow for the next declassified historical chapter."
     },
     {
-        "id": "cia_mkultra_blackbox",
-        "category": "declassified",
-        "series": "MKUltra Subproject 68",
-        "part": 0,
-        "min_likes": 0,
-        "title": "The CIA Program That Erased Human Memories ⚠️ #Shorts #Declassified",
-        "text": "This is official United States Senate document 95-103. Under CIA Subproject 68, the agency funded Dr. Ewen Cameron to develop a technique to completely erase human memory and rebuild personality from scratch. Unwitting patients admitted for minor anxiety were placed into drug-induced comas lasting up to eighty-six days, subjected to electroconvulsive shocks seventy times stronger than standard medical limits, and forced to listen to looped recorded messages half a million times. When the patients woke up, they had permanently forgotten their own names, their children, and how to speak. The agency attempted to incinerate the records in 1973, but thousands of pages were recovered. Subscribe to Abyss Secrets right now to uncover what governments hide, and share this with someone who needs to know the truth.",
-        "query": "creepy dark vintage hospital old medical equipment classified"
+        "id": "us_history_pearl_harbor",
+        "topic": "us_history",
+        "title": "December 7, 1941: The Strike at Dawn 🇺🇸 #Shorts",
+        "hook": "In less than two hours, American history changed forever.",
+        "script": (
+            "On December 7, 1941, naval and air forces struck Pearl Harbor in Hawaii. "
+            "The surprise attack caused catastrophic losses and immediately altered the course of World War Two. "
+            "The following day, President Franklin Roosevelt addressed a stunned Congress. "
+            "Pearl Harbor remains one of the most critical turning points in human history."
+        ),
+        "queries": [
+            "harbor aerial historical",
+            "vintage naval warship ocean",
+            "old newspaper archive",
+            "historical island landscape",
+            "clouds smoke sky cinematic"
+        ],
+        "cta": "Follow for more documented history stories."
+    },
+
+    # ---------------- COLD WAR / DECLASSIFIED ----------------
+    {
+        "id": "us_politics_cuban_crisis",
+        "topic": "us_politics_history",
+        "title": "13 Days That Almost Ended the World 🇺🇸🌎 #Shorts",
+        "hook": "For thirteen days in 1962, humanity stood inches away from nuclear annihilation.",
+        "script": (
+            "In October 1962, U-2 spy plane photos revealed Soviet nuclear missiles in Cuba. "
+            "For thirteen days, President Kennedy and his advisors debated naval blockades and airstrikes, "
+            "while Soviet submarines patrolled the Atlantic armed with nuclear torpedoes. "
+            "It was the closest the world ever came to absolute destruction."
+        ),
+        "queries": [
+            "vintage radar military",
+            "submarine ocean dark",
+            "Cold War historical documents",
+            "military map tactical",
+            "vintage naval fleet"
+        ],
+        "cta": "Follow for the next Cold War declassified file."
     }
 ]
 
-LONG_STORIES = [
-    {
-        "id": "long_abyss_monsters_expedition",
-        "title": "Declassified Ocean: The Leviathans Roaming the Mariana Abyss",
-        "text": "Thirty-six thousand feet beneath the ocean surface lies a realm of absolute darkness where the crushing weight of the water exceeds one thousand times the pressure at sea level. For centuries, oceanographers believed the aphotic hadal trenches were devoid of macroscopic life. Yet, unredacted deep-sea acoustic records tell a horrifying story. In 1960, during Jacques Piccard's legendary descent aboard the bathyscaphe Trieste, an unlogged biological collision occurred. Modern acoustic isolation techniques reveal the sound was an active organic echolocation burst emitted by a colossal apex predator roaming the abyssal plains. What prehistoric organisms survived in the dark? Subscribe to Abyss Secrets and leave your theories below.",
-        "query": "deep sea dark ocean underwater trench mystery monster",
-        "tags": ["ChallengerDeep", "MarianaTrench", "DeepSeaMonster", "DeclassifiedOcean", "AbyssSecrets", "Documentary"]
-    },
-    {
-        "id": "long_cia_secret_experiments",
-        "title": "Project MKUltra Declassified: The CIA's Mind Control Files Exposed",
-        "text": "During the height of the Cold War, the Central Intelligence Agency orchestrated a covert program aimed at achieving absolute control over human cognition. Operating from safehouses and university laboratories, Project MKUltra subjected thousands of citizens to intense psychoactive substances, sensory deprivation, and aggressive conditioning. Though directives were issued to destroy all documentation, thousands of surviving files revealed a terrifying apparatus operating beyond ethical and constitutional limits. What else was hidden behind closed doors? Subscribe to Abyss Secrets for more raw historical revelations.",
-        "query": "classified military documents old typewriter dark room interrogation",
-        "tags": ["MKUltra", "CIADeclassified", "SecretProjects", "AbyssSecrets", "HistoricalDocumentary"]
-    }
-]
+# ============================================================
+# TARIX VA ANALITIKA
+# ============================================================
 
-# ==================== TARIX VA ANALITIKA ====================
 def load_history():
-    if os.path.exists(HISTORY_FILE):
-        try:
-            with open(HISTORY_FILE, "r") as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    return {"uploaded_ids": data, "video_stats": {}}
-                return data
-        except Exception:
-            return {"uploaded_ids": [], "video_stats": {}}
-    return {"uploaded_ids": [], "video_stats": {}}
+    if not os.path.exists(HISTORY_FILE):
+        return {
+            "uploaded_ids": [],
+            "video_stats": {},
+            "topic_views": {"ocean": 0, "cosmos": 0, "us_history": 0, "us_politics_history": 0},
+        }
+    try:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        data.setdefault("uploaded_ids", [])
+        data.setdefault("video_stats", {})
+        data.setdefault("topic_views", {"ocean": 0, "cosmos": 0, "us_history": 0, "us_politics_history": 0})
+        return data
+    except Exception:
+        return {
+            "uploaded_ids": [],
+            "video_stats": {},
+            "topic_views": {"ocean": 0, "cosmos": 0, "us_history": 0, "us_politics_history": 0},
+        }
 
 def save_history(history):
-    with open(HISTORY_FILE, "w") as f:
-        json.dump(history, f, indent=4)
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history, f, indent=2, ensure_ascii=False)
 
-# ==================== YOUTUBE AVTORIZATSIYA (XATOSIZ) ====================
+def choose_story():
+    history = load_history()
+    uploaded = set(history.get("uploaded_ids", []))
+    available = [s for s in SHORTS if s["id"] not in uploaded]
+
+    if not available:
+        # Barchasi tugasa, tarixni qaytadan boshlaymiz
+        history["uploaded_ids"] = []
+        save_history(history)
+        available = SHORTS
+
+    return random.choice(available)
+
+# ============================================================
+# YOUTUBE AUTH
+# ============================================================
+
 def get_youtube_service():
     creds = None
     if os.path.exists("token.json"):
@@ -129,198 +309,209 @@ def get_youtube_service():
         except Exception:
             creds = None
 
+    if creds and creds.expired and creds.refresh_token:
+        try:
+            creds.refresh(Request())
+        except Exception:
+            creds = None
+
     if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            try:
-                creds.refresh(Request())
-            except Exception:
-                creds = None
-
-        if not creds or not creds.valid:
-            if not os.path.exists("client_secret.json"):
-                print("❌ XATOLIK: client_secret.json fayli topilmadi!")
-                sys.exit(1)
-            
-            flow = InstalledAppFlow.from_client_secrets_file("client_secret.json", SCOPES)
-            # port=0 tizimga bo'sh va ruxsat berilgan portni o'zi tanlashga imkon beradi
-            creds = flow.run_local_server(port=0, open_browser=True)
-
-        with open("token.json", "w") as token:
+        if not os.path.exists("client_secret.json"):
+            raise FileNotFoundError("client_secret.json topilmadi.")
+        flow = InstalledAppFlow.from_client_secrets_file("client_secret.json", SCOPES)
+        creds = flow.run_local_server(port=0, open_browser=True)
+        with open("token.json", "w", encoding="utf-8") as token:
             token.write(creds.to_json())
 
     return build("youtube", "v3", credentials=creds)
 
-def analyze_channel_performance(youtube):
-    creature_views = 0
-    declass_views = 0
-    history = load_history()
-    stats = history.get("video_stats", {})
+# ============================================================
+# OVOZ VA PEXELS
+# ============================================================
 
-    try:
-        video_ids = list(stats.values())[-10:]
-        if video_ids:
-            res = youtube.videos().list(part="statistics", id=",".join(video_ids)).execute()
-            for item in res.get("items", []):
-                vid_id = item["id"]
-                views = int(item["statistics"].get("viewCount", 0))
-                for s_id, v_id in stats.items():
-                    if v_id == vid_id:
-                        story = next((s for s in SHORTS_STORIES if s["id"] == s_id), None)
-                        if story:
-                            if story["category"] == "creature":
-                                creature_views += views
-                            else:
-                                declass_views += views
-    except Exception as e:
-        print(f"⚠️ Analitika bildirishnomasi: {e}")
+async def generate_voice(text, filename):
+    communicate = edge_tts.Communicate(
+        text=text,
+        voice=VOICE,
+        rate="-6%",
+        pitch="-1Hz"
+    )
+    await communicate.save(filename)
 
-    return "creature" if creature_views >= declass_views else "declassified"
-
-def get_next_story(youtube, is_long=False):
-    history = load_history()
-    uploaded_ids = set(history.get("uploaded_ids", []))
-
-    if is_long:
-        available = [s for s in LONG_STORIES if s["id"] not in uploaded_ids]
-        if not available:
-            history["uploaded_ids"] = [i for i in history.get("uploaded_ids", []) if not i.startswith("long_")]
-            available = LONG_STORIES
-        return available[0]
-
-    available = [s for s in SHORTS_STORIES if s["id"] not in uploaded_ids]
-    if not available:
-        history["uploaded_ids"] = [i for i in history.get("uploaded_ids", []) if i.startswith("long_")]
-        available = SHORTS_STORIES
-
-    preferred_category = analyze_channel_performance(youtube)
-    print(f"📊 [Smart Algoritm]: Eng ko'p ko'rilayotgan toifa tanlandi: {preferred_category.upper()}")
-
-    matched = [s for s in available if s.get("category") == preferred_category]
-    return matched[0] if matched else available[0]
-
-# ==================== OVOZ GENERATSIYASI ====================
-async def generate_voice(text, filename="voice.mp3"):
-    comm = edge_tts.Communicate(text, voice="en-US-ChristopherNeural", rate="-3%", pitch="-2Hz")
-    await comm.save(filename)
-
-# ==================== PEXELS VIDEO MATERIALLARI ====================
-def download_pexels_clips(query, orientation="portrait", count=1, output_files=["bg.mp4"]):
+def search_pexels(query, per_page=10):
+    url = "https://api.pexels.com/videos/search"
     headers = {"Authorization": PEXELS_API_KEY}
-    url = f"https://api.pexels.com/videos/search?query={query}&orientation={orientation}&per_page=15"
-    resp = requests.get(url, headers=headers).json()
-    videos = resp.get("videos", [])
+    response = requests.get(
+        url,
+        headers=headers,
+        params={"query": query, "orientation": "portrait", "per_page": per_page},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json().get("videos", [])
+
+def download_one_pexels(query, output_file):
+    try:
+        videos = search_pexels(query)
+    except Exception:
+        videos = []
 
     if not videos:
-        fallback = "dark deep underwater" if orientation == "portrait" else "dark sea storm mystery"
-        url = f"https://api.pexels.com/videos/search?query={fallback}&orientation={orientation}&per_page=15"
-        videos = requests.get(url, headers=headers).json().get("videos", [])
+        fallback_queries = ["deep ocean underwater", "space stars universe", "galaxy nebula"]
+        videos = search_pexels(random.choice(fallback_queries))
 
     random.shuffle(videos)
-    target_width, target_height = (1080, 1920) if orientation == "portrait" else (1920, 1080)
+    video = videos[0]
+    files = video.get("video_files", [])
 
-    for i in range(min(count, len(output_files))):
-        choice = videos[i % len(videos)]
-        video_files = choice["video_files"]
-        selected = next((f for f in video_files if f.get("width") == target_width and f.get("height") == target_height), video_files[0])
-        res = requests.get(selected["link"], stream=True)
-        with open(output_files[i], "wb") as f:
-            for chunk in res.iter_content(chunk_size=1024 * 1024):
+    vertical = [f for f in files if f.get("height", 0) > f.get("width", 0)]
+    selected = max(vertical, key=lambda x: x.get("width", 0)) if vertical else max(files, key=lambda x: x.get("width", 0))
+    link = selected["link"]
+
+    with requests.get(link, stream=True, timeout=60) as response:
+        response.raise_for_status()
+        with open(output_file, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
                 if chunk:
                     f.write(chunk)
 
-# ==================== MONTAJ ====================
-def build_short_video(audio_file="voice.mp3", video_file="bg.mp4", output_file="final_short.mp4"):
-    audio = AudioFileClip(audio_file)
-    dur = audio.duration + 0.4
-    clip = VideoFileClip(video_file)
+def crop_to_vertical(clip):
+    w, h = clip.size
+    target_ratio = WIDTH / HEIGHT
+    current_ratio = w / h
 
-    if clip.duration < dur:
-        clip = clip.loop(duration=dur)
+    if current_ratio > target_ratio:
+        new_w = int(h * target_ratio)
+        x1 = int((w - new_w) / 2)
+        clip = clip.crop(x1=x1, y1=0, x2=x1 + new_w, y2=h)
     else:
-        clip = clip.subclip(0, dur)
+        new_h = int(w / target_ratio)
+        y1 = int((h - new_h) / 2)
+        clip = clip.crop(x1=0, y1=y1, x2=w, y2=y1 + new_h)
 
-    final = clip.set_audio(audio)
-    final.write_videofile(output_file, codec="libx264", audio_codec="aac", fps=24, preset="ultrafast", verbose=False, logger=None)
-    audio.close()
-    clip.close()
-    final.close()
+    return clip.resize((WIDTH, HEIGHT))
 
-def build_long_video(audio_file="voice_long.mp3", clip_files=["c1.mp4", "c2.mp4", "c3.mp4", "c4.mp4"], output_file="final_long.mp4"):
-    audio = AudioFileClip(audio_file)
-    dur = audio.duration + 0.5
-    clips = [VideoFileClip(f) for f in clip_files]
-    concatenated = concatenate_videoclips(clips, method="compose")
+def build_multiscene_short(story, voice_file, output_file):
+    audio = AudioFileClip(voice_file)
+    total_duration = max(audio.duration, MIN_SHORT_SECONDS)
+    queries = story["queries"]
+    scene_count = min(5, len(queries))
+    scene_duration = total_duration / scene_count
 
-    if concatenated.duration < dur:
-        final_video = concatenated.loop(duration=dur)
-    else:
-        final_video = concatenated.subclip(0, dur)
+    clips = []
+    temp_files = []
 
-    final = final_video.set_audio(audio)
-    final.write_videofile(output_file, codec="libx264", audio_codec="aac", fps=24, preset="ultrafast", verbose=False, logger=None)
-    audio.close()
-    for c in clips:
-        c.close()
-    concatenated.close()
-    final.close()
+    try:
+        for i in range(scene_count):
+            query = queries[i]
+            raw_file = OUT_DIR / f"scene_{i}.mp4"
+            temp_files.append(raw_file)
+            print(f"🎥 Sahna {i+1}/{scene_count}: {query}")
 
-# ==================== YOUTUBE YUKLASH ====================
-def upload_video_to_yt(youtube, video_path, story, is_shorts=True):
+            download_one_pexels(query, str(raw_file))
+            clip = VideoFileClip(str(raw_file))
+            clip = crop_to_vertical(clip)
+
+            if clip.duration < scene_duration:
+                clip = clip.loop(duration=scene_duration)
+            else:
+                max_start = max(0, clip.duration - scene_duration)
+                start = random.uniform(0, max_start) if max_start > 0 else 0
+                clip = clip.subclip(start, start + scene_duration)
+
+            clip = clip.set_duration(scene_duration)
+            clips.append(clip)
+
+        video = concatenate_videoclips(clips, method="compose")
+        video = video.subclip(0, min(video.duration, total_duration))
+        video = video.set_audio(audio)
+        video = video.set_duration(audio.duration)
+
+        video.write_videofile(
+            str(output_file),
+            codec="libx264",
+            audio_codec="aac",
+            fps=FPS,
+            preset="ultrafast",
+            threads=4,
+            verbose=False,
+            logger=None,
+        )
+
+        audio.close()
+        video.close()
+        for c in clips:
+            c.close()
+    finally:
+        for p in temp_files:
+            try:
+                if p.exists():
+                    p.unlink()
+            except Exception:
+                pass
+
+# ============================================================
+# YUKLASH PIPELINE
+# ============================================================
+
+def upload_to_youtube(youtube, story, video_path):
     title = story["title"]
-    desc = story["text"] + "\n\n⚠️ Subscribe to Abyss Secrets for daily declassified reality.\n\n#Shorts #AbyssSecrets #DeepSea #Declassified #Mystery"
-    tags = ["Shorts", "AbyssSecrets", "Horror", "Declassified", "DeepSea", "CIAFiles", "Unexplained"] if is_shorts else story["tags"]
+    description = (
+        f"{story['script']}\n\n"
+        f"{story['cta']}\n"
+        f"If this reaches {PART2_LIKE_GOAL} likes, Part 2 continues the story.\n\n"
+        "Abyss Secrets explores deep-ocean mysteries, cosmic phenomena, and historical secrets.\n\n"
+        "#Shorts #AbyssSecrets #DeepSea #Space #Mystery #History"
+    )
+
+    tags = ["Abyss Secrets", "Shorts", "deep sea", "ocean mystery", "space mystery", "cosmos", "history", "mystery"]
 
     body = {
         "snippet": {
             "title": title,
-            "description": desc,
+            "description": description,
             "tags": tags,
-            "categoryId": "27"
+            "categoryId": "28",
         },
         "status": {
             "privacyStatus": "public",
-            "selfDeclaredMadeForKids": False
-        }
+            "selfDeclaredMadeForKids": False,
+        },
     }
-    media = MediaFileUpload(video_path, chunksize=-1, resumable=True, mimetype="video/*")
-    req = youtube.videos().insert(part=",".join(body.keys()), body=body, media_body=media)
-    res = req.execute()
-    vid_id = res["id"]
+
+    media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
+    request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
+    result = request.execute()
+    video_id = result["id"]
 
     history = load_history()
     history.setdefault("uploaded_ids", []).append(story["id"])
-    history.setdefault("video_stats", {})[story["id"]] = vid_id
+    history.setdefault("video_stats", {})[story["id"]] = video_id
     save_history(history)
 
-    print("\n" + "=" * 50)
-    print(f"🚀 VIDEO CHIQARILDI: https://youtu.be/{vid_id}")
-    print("=" * 50 + "\n")
-    return vid_id
+    print("=" * 60)
+    print(f"🚀 YUKLANDI: {title}")
+    print(f"🔗 Havola: https://youtu.be/{video_id}")
+    print("=" * 60)
+    return video_id
 
-# ==================== ASOSIY PIPELINE ====================
-def run_pipeline(mode="short"):
+def run_short():
     youtube = get_youtube_service()
+    story = choose_story()
+    print(f"\n🎯 MAVZU: {story['topic'].upper()} | {story['title']}")
 
-    if mode == "long":
-        story = get_next_story(youtube, is_long=True)
-        print(f"\n[🎬 2 MINUTLIK VIDEO]: {story['title']}")
-        asyncio.run(generate_voice(story["text"], "voice_long.mp3"))
-        clip_files = ["c1.mp4", "c2.mp4", "c3.mp4", "c4.mp4"]
-        download_pexels_clips(story["query"], orientation="landscape", count=4, output_files=clip_files)
-        build_long_video("voice_long.mp3", clip_files, "final_long.mp4")
-        upload_video_to_yt(youtube, "final_long.mp4", story, is_shorts=False)
-    else:
-        story = get_next_story(youtube, is_long=False)
-        print(f"\n[🚀 50s SMART SHORTS]: {story['title']}")
-        asyncio.run(generate_voice(story["text"], "voice.mp3"))
-        download_pexels_clips(story["query"], orientation="portrait", count=1, output_files=["bg.mp4"])
-        build_short_video("voice.mp3", "bg.mp4", "final_short.mp4")
-        upload_video_to_yt(youtube, "final_short.mp4", story, is_shorts=True)
+    narration = story["script"].strip() + " " + story["cta"].strip() + f" If this video reaches {PART2_LIKE_GOAL} likes, we will uncover part two."
+    voice_file = OUT_DIR / f"{story['id']}_voice.mp3"
+    final_file = OUT_DIR / f"{story['id']}_short.mp4"
+
+    asyncio.run(generate_voice(narration, str(voice_file)))
+    build_multiscene_short(story, voice_file, final_file)
+    upload_to_youtube(youtube, story, final_file)
 
 if __name__ == "__main__":
-    mode_arg = sys.argv[1] if len(sys.argv) > 1 else "short"
-    if mode_arg == "auth":
+    mode = sys.argv[1].lower() if len(sys.argv) > 1 else "short"
+    if mode == "auth":
         get_youtube_service()
-        print("✅ token.json muvaffaqiyatli saqlandi!")
+        print("✅ OAuth tayyor.")
     else:
-        run_pipeline(mode_arg)
+        run_short()
