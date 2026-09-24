@@ -3,12 +3,34 @@
     "mariana_part1",
     "creature_challenger_crushed",
     "military_slaughter_2018_447",
-    "military_slaughter_1942_680"
+    "military_slaughter_1942_680",
+    "war_clash_1956_part1"
   ],
   "video_stats": {
     "mariana_part1": "AFJJBn9EW0Y",
     "creature_challenger_crushed": "YwS3bFZr4Ew"
   },
-  "pending_part2": [],
+  "pending_part2": [
+    {
+      "video_id": "wxWDrsX9rdk",
+      "likes": 0,
+      "views": 0,
+      "category": "ww2_military_horror",
+      "zone": {
+        "name": "the North Atlantic U-Boat Graveyard",
+        "depth": "18,000 feet beneath freezing war zones"
+      },
+      "battle": {
+        "titan_a": "NAZI U-BOAT FLEET WOLFPACK",
+        "titan_b": "THE ARMORED CHASM LEVIATHAN",
+        "category": "ww2_military_horror",
+        "intro": "during World War Two, three German U-boats hunting Allied convoys encountered a bio-luminescent sea titan",
+        "violence": "The beast rammed U-boat 480 from beneath, biting the double-steel hull completely in half while deck gunners fired futilely into sixty-foot jaws",
+        "aftermath": "leaving shredded torpedo bays and dismembered sailors floating in oil-stained freezing waters",
+        "secret": "Recovered Kriegsmarine logbooks recorded that depth charges only infuriated the leviathan, causing it to swallow the second sub whole"
+      },
+      "year": 1956
+    }
+  ],
   "favorite_category": "ww2_military_horror"
 }
