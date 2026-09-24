@@ -6,7 +6,7 @@ on:
     - cron: '0 17 * * *'  # Shorts 2: 01:00 PM ET
     - cron: '0 21 * * *'  # Shorts 3: 05:00 PM ET
     - cron: '0 1 * * *'   # Shorts 4: 09:00 PM ET
-    - cron: '0 17 * * 3,0' # 2-min video: Chorshanba va Yakshanba 01:00 PM ET
+    - cron: '0 17 * * 3,0' # 3-min video: Chorshanba va Yakshanba 01:00 PM ET
   workflow_dispatch:
 
 jobs:
@@ -24,11 +24,12 @@ jobs:
       - name: Kutubxonalarni o'rnatish
         run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg
-          pip install requests edge-tts moviepy==1.0.3 google-api-python-client google-auth-oauthlib google-auth-httplib2
+          pip install requests edge-tts moviepy==1.0.3 numpy Pillow google-api-python-client google-auth-oauthlib google-auth-httplib2
 
       - name: Videoni yasash va yuklash
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
         run: |
           CURRENT_HOUR=$(date -u +%H)
           CURRENT_DAY=$(date -u +%u)
