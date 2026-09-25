@@ -5,6 +5,7 @@ import re
 import requests
 from google import genai
 
+
 def clean_url(url_str):
     """Har qanday markdown, qavs va ortiqcha belgilarni tozalab, sof URL ajratadi"""
     match = re.search(r'https?://[^\s\)\]\"\']+', url_str)
@@ -12,15 +13,28 @@ def clean_url(url_str):
         return match.group(0)
     return url_str.strip()
 
+
 def clean_json_response(raw_text):
-    text = raw_text.strip()
+    text = (raw_text or "").strip()
+    if not text:
+        raise ValueError("Bo'sh AI javobi")
+
     if text.startswith("```json"):
         text = text[7:]
     elif text.startswith("```"):
         text = text[3:]
     if text.endswith("```"):
         text = text[:-3]
-    return json.loads(text.strip())
+
+    text = text.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r'\{.*\}', text, re.S)
+        if match:
+            return json.loads(match.group(0))
+        raise
+
 
 def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
     past_titles_str = "\n- ".join(past_titles[-15:]) if past_titles else "None yet"
@@ -46,7 +60,7 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
             '  "scenes": [\n'
             '     {"text": "spoken line", "prompt": "16:9 photorealistic 8k dark cinematic deep ocean expedition horror scene, Unreal Engine 5"}\n'
             "  ]\n"
-            "}"
+            "}\n"
         )
 
     elif mode == "long_3min":
@@ -54,7 +68,7 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
             "You are an elite documentary director. Write an intense 3-minute standalone horizontal military naval mystery (~400 words).\n"
             f"Context: '{winning_theme}'.\n"
             "RULES:\n"
-            "1. NO CLICHE OPENINGS.\n"
+            "1. NO CLICHES.\n"
             f"2. FORBIDDEN TITLES:\n- {past_titles_str}\n"
             f"3. FORBIDDEN HOOKS:\n- {past_hooks_str}\n"
             "4. Divide into EXACTLY 36 scenes.\n"
@@ -66,7 +80,7 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
             '  "scenes": [\n'
             '     {"text": "spoken line", "prompt": "16:9 photorealistic 8k dark cinematic deep ocean naval disaster scene, Unreal Engine 5"}\n'
             "  ]\n"
-            "}"
+            "}\n"
         )
 
     elif mode == "post":
@@ -77,7 +91,7 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
             '  "title": "Community Post Update",\n'
             '  "text": "Intriguing declassified expedition report update ending with a question (~60-80 words).",\n'
             '  "image_prompt": "16:9 cinematic classified black and white polaroid photograph of underwater expedition in dark ocean, 8k"\n'
-            "}"
+            "}\n"
         )
 
     else:
@@ -97,73 +111,136 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
             '  "scenes": [\n'
             '     {"text": "spoken line", "prompt": "vertical 9:16 photorealistic 8k dark underwater cinematic horror prompt"}\n'
             "  ]\n"
-            "}"
+            "}\n"
         )
+
+
+def _gemini_models():
+    models = []
+    env_model = os.environ.get("GEMINI_MODEL")
+    if env_model:
+        models.append(env_model.strip())
+    models.extend([
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+    ])
+    seen = set()
+    result = []
+    for m in models:
+        if m and m not in seen:
+            seen.add(m)
+            result.append(m)
+    return result
+
+
+def _groq_models():
+    models = []
+    env_model = os.environ.get("GROQ_MODEL")
+    if env_model:
+        models.append(env_model.strip())
+    models.extend([
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+    ])
+    seen = set()
+    result = []
+    for m in models:
+        if m and m not in seen:
+            seen.add(m)
+            result.append(m)
+    return result
+
 
 def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", episode_num=1):
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
 
-    # 1. GEMINI
     gemini_key = os.environ.get("GEMINI_API_KEY")
     if gemini_key:
         try:
             client = genai.Client(api_key=gemini_key.strip())
-            for attempt in range(1, 4):
+            gemini_models = _gemini_models()
+            for attempt, model_name in enumerate(gemini_models, start=1):
                 try:
-                    print(f"🧠 Gemini urinish {attempt}/3...")
-                    res = client.models.generate_content(model="gemini-3.8-flash", contents=prompt)
-                    if res and res.text:
-                        return clean_json_response(res.text)
+                    print(f"🧠 Gemini urinish {attempt}/{len(gemini_models)} ({model_name})...")
+                    res = client.models.generate_content(model=model_name, contents=prompt)
+                    text = getattr(res, "text", None)
+                    if text:
+                        return clean_json_response(text)
+                    if hasattr(res, "candidates"):
+                        for candidate in res.candidates:
+                            content = getattr(candidate, "content", None)
+                            if content is None:
+                                continue
+                            parts = getattr(content, "parts", None)
+                            if not parts:
+                                continue
+                            joined = "".join(getattr(p, "text", "") for p in parts if getattr(p, "text", None))
+                            if joined:
+                                return clean_json_response(joined)
                 except Exception as ge:
-                    print(f"⚠️ Gemini urinish {attempt} kutilmoqda: {ge}")
-                    if attempt < 3:
-                        time.sleep(3)
+                    print(f"⚠️ Gemini ({model_name}) xato: {ge}")
+                    if attempt < len(gemini_models):
+                        time.sleep(5)
         except Exception as e:
-            print(f"⚠️ Gemini xatoligi: {e}")
+            print(f"⚠️ Gemini konfiguratsiya xatosi: {e}")
 
-    # 2. GROQ (clean_url orqali har qanday xato format tozalab olinadi)
     groq_key = os.environ.get("GROQ_API_KEY")
     if groq_key:
-        raw_url = "[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)"
-        groq_url = clean_url(raw_url)
-        groq_models = ["llama-3.1-8b-instant", "llama3-70b-8192"]
-        for g_model in groq_models:
+        groq_url = clean_url("[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)")
+        headers = {
+            "Authorization": f"Bearer {groq_key.strip()}",
+            "Content-Type": "application/json",
+        }
+
+        for model_name in _groq_models():
             try:
-                print(f"🧠 Groq ({g_model}) ishga tushdi...")
-                headers = {
-                    "Authorization": f"Bearer {groq_key.strip()}",
-                    "Content-Type": "application/json"
-                }
+                print(f"🧠 Groq ({model_name}) ishga tushdi...")
                 payload = {
-                    "model": g_model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "response_format": {"type": "json_object"}
+                    "model": model_name,
+                    "messages": [
+                        {"role": "system", "content": "Return only valid JSON. Do not add explanation."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.7,
                 }
-                r = requests.post(groq_url, headers=headers, json=payload, timeout=30)
+                r = requests.post(groq_url, headers=headers, json=payload, timeout=60)
+                print(f"⚠️ Groq ({model_name}) status: {r.status_code}")
                 if r.status_code == 200:
                     data = r.json()
-                    return json.loads(data["choices"][0]["message"]["content"])
+                    if "choices" in data and data["choices"]:
+                        content = data["choices"][0]["message"]["content"]
+                        return clean_json_response(content)
                 else:
-                    print(f"⚠️ Groq ({g_model}) status: {r.status_code}")
+                    try:
+                        print(r.text[:500])
+                    except Exception:
+                        pass
             except Exception as e:
-                print(f"⚠️ Groq ({g_model}) xatoligi: {e}")
+                print(f"⚠️ Groq ({model_name}) xatoligi: {e}")
 
-    # 3. ZAXIRA POLLINATIONS (Tozalangan URL bilan)
     print("🧠 Zaxira AI ishga tushdi...")
     try:
-        raw_poll = "[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)"
-        poll_url = clean_url(raw_poll)
+        poll_url = clean_url("[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)")
         payload = {
             "model": "openai",
             "messages": [
                 {"role": "system", "content": "You are a JSON generator. Return only raw valid JSON."},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
-            "response_format": {"type": "json_object"}
+            "temperature": 0.7,
         }
-        pr = requests.post(poll_url, json=payload, timeout=45)
+        pr = requests.post(poll_url, json=payload, timeout=60)
+        print(f"⚠️ Pollinations status: {pr.status_code}")
         if pr.status_code == 200:
-            return json.loads(pr.json()["choices"][0]["message"]["content"])
+            data = pr.json()
+            if "choices" in data and data["choices"]:
+                content = data["choices"][0]["message"]["content"]
+                return clean_json_response(content)
+        else:
+            try:
+                print(pr.text[:500])
+            except Exception:
+                pass
     except Exception as pe:
         print(f"⚠️ Zaxira AI xatoligi: {pe}")
 
