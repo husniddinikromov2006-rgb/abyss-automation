@@ -19,7 +19,7 @@ def clean_url(url_str):
 def extract_valid_json(text):
     start = text.find("{")
     if start == -1:
-        raise ValueError("Matnda { topilmadi")
+        raise ValueError("Metinde { bulunamadı")
 
     depth = 0
     in_string = False
@@ -46,11 +46,11 @@ def extract_valid_json(text):
     if end > start:
         return text[start:end+1]
 
-    raise ValueError("To'liq JSON bloki topilmadi")
+    raise ValueError("Eksiksiz JSON bloğu bulunamadı")
 
 def clean_json_response(raw_text):
     if not raw_text:
-        raise ValueError("Bo'sh javob keldi.")
+        raise ValueError("AI boş yanıt döndürdü.")
 
     text = str(raw_text).strip()
     text = re.sub(r"^```json\s*", "", text, flags=re.IGNORECASE)
@@ -61,92 +61,134 @@ def clean_json_response(raw_text):
     data = json.loads(json_candidate)
 
     if not isinstance(data, dict):
-        raise ValueError("AI javobi JSON emas.")
+        raise ValueError("Yanıt geçerli bir JSON nesnesi değil.")
     return data
 
+# ============================================================
+# 40 YILLIK TÜKENMEZ MATRİS HAVUZU (Milyonlarca Kombinasyon)
+# ============================================================
+
+LOCATIONS = [
+    "the Challenger Deep inside the Mariana Trench",
+    "the abyssal hydrothermal fracture of the Puerto Rico Trench",
+    "the submerged spacecraft graveyard of Point Nemo",
+    "the magnetic disturbance zone of the Romanche Trench",
+    "the ice-shelf subglacial cavern beneath Lake Vostok",
+    "the volcanic seafloor canyon of the Kuril-Kamchatka Trench",
+    "the declassified nuclear disaster zone of Soviet submarine K-129",
+    "the midnight abyss of the Java Sunda Trench",
+    "the South Sandwich Trench near the Antarctic perimeter",
+    "the unexplored tectonic rift of the Kermadec Trench",
+    "the sunken volcanic plateau of the Bermuda Abyssal Plain",
+    "the methane hydrate fields off the coast of Svalbard",
+    "the Molloy Deep under Arctic ice sheets",
+    "the Yap Trench abyssal fault line",
+    "the Diamantina Fracture Zone in the South Indian Basin",
+    "the Philippine Trench seabed fissure at 34,000 feet",
+    "the Aleutian Trench subduction cavern system",
+    "the submerged ruins of the Yonaguni tectonic shelf",
+    "the dead-zone perimeter of the Baltic Sea Anomaly",
+    "the hydrothermal chimney forest of the Guaymas Basin"
+]
+
+VESSELS = [
+    "US Navy Nuclear Submarine SSN-711",
+    "Deep-sea Research Bathyscaphe Proteus-IV",
+    "Classified NATO Sonar Surveillance Platform Titan-Echo",
+    "Autonomous Abyssal Glider Drone Deep-Scan 9",
+    "Submersible Excavation Platform Erebus-3",
+    "US Naval Oceanographic Vessel Pathfinder Delta",
+    "Soviet-era Titanium Submersible Mir-Omega",
+    "Deep Trench Reconnaissance Sub Pioneer-7",
+    "Classified DARPA Undersea Habitat Station Alpha-Null",
+    "Heavy Seafloor Drilling Crawler Behemoth-2"
+]
+
+CREATURES = [
+    "an armored serpent-like leviathan spanning over two hundred feet",
+    "a colossal ancient cephalopod with bioluminescent crimson eyes",
+    "a blind abyssal apex predator with needle-sharp titanium-crushing teeth",
+    "a bio-metallic siphonophore entity radiating sonic EMP pulses",
+    "a burrowing tectonic worm carving paths through volcanic magma veins",
+    "a translucent chitin-plated horror with razor tentacles",
+    "an ancient deep-ocean leviathan sleeping in hydrothermal vents",
+    "a parasitic abyssal organism capable of fusing with submarine electronics",
+    "a gargantuan abyssal angler with bioluminescent hypnotic lures",
+    "a segmented armored horror moving at fifty knots along the seafloor"
+]
+
+EVENTS = [
+    "hull pressure gauges spiked forty percent beyond titanium crush limits",
+    "the main propulsion shafts were seized by dense bioluminescent coils",
+    "a sustained 14-hertz biological shockwave shattered the forward observation dome",
+    "external quartz floodlights revealed massive claw scars tearing the outer plating",
+    "all navigation compasses spun erratically before navigation telemetry went black",
+    "hydrophones recorded acoustic rhythmic clicks resembling a massive hunting lung",
+    "radiation warning systems activated as the sea temperature spiked fifty degrees",
+    "the emergency ballast tanks were severed from outside by razor-sharp mandibles"
+]
+
+CLIMAXES = [
+    "When maximum emergency spotlights ignited, the entire trench floor began moving upward.",
+    "A final distorted voice transmission confirmed: 'It is not an anomaly... it is hunting our engines.'",
+    "The rescue submersible discovered only shredded hull sections covered in acid residue.",
+    "The emergency transponder signal abruptly descended into the earth crust at eighty knots.",
+    "Sonar feeds caught the outline of an eye twice the size of the submarine hull opening in the dark.",
+    "The black box recording terminated as thousands of glowing tendrils encircled the control room."
+]
+
 def build_prompt(mode, winning_theme, past_titles=None, past_hooks=None, episode_num=1):
-    past_titles_str = "\n- ".join(past_titles[-15:]) if past_titles else "None yet"
-    past_hooks_str = "\n- ".join(past_hooks[-15:]) if past_hooks else "None yet"
+    past_titles_str = "\n- ".join(past_titles[-30:]) if past_titles else "None"
+    past_hooks_str = "\n- ".join(past_hooks[-30:]) if past_hooks else "None"
 
-    style_guide = (
-        "VISUAL STYLE: Extreme deep sea abyss horror, colossal bioluminescent sea monsters, "
-        "diver flashlights cutting through pitch-black water, decaying submarine wreckage, "
-        "terrifying tentacles, razor-sharp abyssal predators, hyperrealistic textures, cinematic lighting, 8k, Unreal Engine 5."
-    )
+    loc = random.choice(LOCATIONS)
+    vessel = random.choice(VESSELS)
+    creature = random.choice(CREATURES)
+    evt = random.choice(EVENTS)
 
-    if mode == "series_4min":
-        return f"""
-You are a master of Lovecraftian deep-ocean suspense documentaries.
-Write EPISODE {episode_num} of deep-sea military thriller (~520 words).
-Theme: {winning_theme}. Forbidden titles: {past_titles_str}.
-{style_guide}
-Return ONLY raw valid JSON:
+    target_words = 120 if mode == "shorts" else (400 if mode == "long_3min" else 520)
+    target_scenes = 12 if mode == "shorts" else (36 if mode == "long_3min" else 48)
+    aspect = "16:9" if mode in ["long_3min", "series_4min", "post"] else "9:16"
+
+    return f"""
+You are a premier documentary filmmaker creating an elite deep-sea naval mystery.
+Write a 100% UNIQUE narrative based on:
+- Location: {loc}
+- Vessel: {vessel}
+- Incident: {evt}
+- Entity: {creature}
+
+CRITICAL RULES (ABSOLUTE ZERO REPETITION):
+1. Never start with "At 36,000 feet" or generic phrases.
+2. Begin immediately with military radio distress, timestamped logs, or anomalous telemetry.
+3. FORBIDDEN TITLES:
+{past_titles_str}
+4. FORBIDDEN HOOKS:
+{past_hooks_str}
+5. Exact spoken script: ~{target_words} words.
+6. EXACTLY {target_scenes} scenes with spoken lines and vivid prompts.
+
+JSON SCHEMA:
 {{
-  "title": "ABYSS ARCHIVES - Episode {episode_num}: The Mariana Breach",
-  "hook": "At 36,000 feet, sonar detected a heartbeat.",
-  "script": "Full narrative...",
+  "title": "Shocking High-CTR Title #Shorts",
+  "hook": "Unforgettable first sentence",
+  "script": "Full narrative script...",
   "scenes": [
-    {{"text": "Line 1", "prompt": "16:9 photorealistic 8k colossal deep sea abyss sea monster lurking near research submarine, underwater headlights, terrifying jaws, dark murky water, Unreal Engine 5"}}
-  ]
-}}
-"""
-    elif mode == "long_3min":
-        return f"""
-Write an intense 3-minute standalone military naval mystery documentary (~400 words).
-Theme: {winning_theme}. Forbidden titles: {past_titles_str}.
-{style_guide}
-Return ONLY raw valid JSON:
-{{
-  "title": "What Lurks Beneath Mariana Trench: Declassified Logs",
-  "hook": "The submarine hull buckled before sonar went dead.",
-  "script": "Full narrative...",
-  "scenes": [
-    {{"text": "Line 1", "prompt": "16:9 photorealistic 8k giant deep sea abyssal beast opening mouth in pitch black ocean trench, diver spotlight, cinematic horror, Octane render"}}
-  ]
-}}
-"""
-    elif mode == "post":
-        return f"""
-Create a viral Community Post update about deep ocean anomalies.
-Theme: {winning_theme}.
-Return ONLY raw valid JSON:
-{{
-  "title": "Community Post Update",
-  "text": "Declassified expedition log recovered from 11,000 meters deep. What do you think attacked the hull?",
-  "image_prompt": "16:9 cinematic underwater photograph of terrifying gigantic deep ocean monster approaching submarine window, dark ocean, 8k"
-}}
-"""
-    else:
-        return f"""
-Write an ultra-viral 50-second US naval abyss horror story for YouTube Shorts (~120 words).
-Theme: {winning_theme}. Forbidden titles: {past_titles_str}.
-{style_guide}
-Return ONLY raw valid JSON:
-{{
-  "title": "Never Dive Alone Into The Mariana Trench 🌊 #Shorts",
-  "hook": "We thought the sonar echo was a mountain.",
-  "script": "Full narrative...",
-  "scenes": [
-    {{"text": "Line 1", "prompt": "vertical 9:16 photorealistic 8k terrifying gigantic abyss sea monster with glowing eyes emerging from deep underwater trench, diver flashlight beam, cinematic horror, Unreal Engine 5"}}
+    {{"text": "Spoken line", "prompt": "{aspect} photorealistic 8k terrifying {creature} attacking {vessel} in dark abyss, diver floodlights, Unreal Engine 5"}}
   ]
 }}
 """
 
 def validate_story(data, mode):
     if not isinstance(data, dict):
-        raise ValueError("Natija JSON emas.")
+        raise ValueError("Sonuç geçerli bir JSON değil.")
 
-    if mode == "post":
-        text_val = data.get("text") or data.get("content") or "Declassified expedition log recovered from Mariana Trench."
-        data["text"] = str(text_val)
-        return data
-
-    title_val = data.get("title") or data.get("video_title") or "THE ABYSS INCIDENT #Shorts"
+    title_val = data.get("title") or data.get("video_title") or f"THE ABYSS ANOMALY #{random.randint(1000, 99999)} #Shorts"
     data["title"] = str(title_val)
 
     script_val = data.get("script") or data.get("narration") or data.get("story")
     if not script_val:
-        raise ValueError("Script topilmadi.")
+        raise ValueError("Script metni bulunamadı.")
     data["script"] = str(script_val)
 
     hook_val = data.get("hook") or data["script"].split(".")[0]
@@ -154,118 +196,148 @@ def validate_story(data, mode):
 
     scenes = data.get("scenes") or data.get("shots") or []
     target_count = 12 if mode == "shorts" else (36 if mode == "long_3min" else 48)
-
     aspect = "16:9" if mode in ["long_3min", "series_4min", "post"] else "9:16"
-
-    horror_prompts = [
-        f"{aspect} photorealistic 8k gigantic terrifying deep sea leviathan serpent opening massive maw in dark ocean trench, diver flashlight beam hitting scales, hyperdetailed, Unreal Engine 5",
-        f"{aspect} photorealistic 8k massive ancient cephalopod monster with tentacles wrapping around sunken military submarine, bioluminescent glowing runes, dark murky abyss, cinematic horror",
-        f"{aspect} photorealistic 8k deep sea exploration diver floating into pitch black abyss staring at colossal glowing eye in oceanic trench, hyperrealistic volumetric fog",
-        f"{aspect} photorealistic 8k horrifying deep sea anglerfish predator with razor teeth emerging from underwater abyss, bioluminescent lure illuminating dark water, cinematic depth"
-    ]
 
     if not isinstance(scenes, list) or len(scenes) == 0:
         sentences = [s.strip() for s in data["script"].split(".") if len(s.strip()) > 3]
         scenes = []
         for i in range(target_count):
-            txt = sentences[i % len(sentences)] if sentences else "The creature circled back."
-            scenes.append({"text": txt, "prompt": horror_prompts[i % len(horror_prompts)]})
+            txt = sentences[i % len(sentences)] if sentences else "The seismic signals accelerated deeper."
+            scenes.append({
+                "text": txt,
+                "prompt": f"{aspect} photorealistic 8k colossal deep sea leviathan mouth opening in pitch black ocean trench, volumetric headlights, Unreal Engine 5"
+            })
 
     for i, sc in enumerate(scenes):
         if isinstance(sc, dict):
-            sc.setdefault("text", "The sonar recorded impossible movements.")
+            sc.setdefault("text", "The hydrophone sensors continued pulsing.")
             p = sc.get("prompt", "")
             if len(p) < 25 or "ocean" not in p.lower():
-                sc["prompt"] = horror_prompts[i % len(horror_prompts)]
+                sc["prompt"] = f"{aspect} photorealistic 8k terrifying deep ocean monster emerging from abyssal darkness, diver flashlight beam, Unreal Engine 5"
 
     data["scenes"] = scenes
     return data
 
+# ============================================================
+# İNTERNETTEN AÇIK VE ÜCRETSİZ AI MOTORLARI
+# ============================================================
+
 def fetch_internet_ai(prompt):
-    endpoints = [
-        "[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)",
-        "[https://text.pollinations.ai/](https://text.pollinations.ai/)"
+    engines = [
+        ("[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)", "openai"),
+        ("[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)", "mistral"),
+        ("[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)", "qwen")
     ]
 
-    try:
-        url = clean_url(endpoints[0])
-        payload = {
-            "model": "openai",
-            "messages": [
-                {"role": "system", "content": "You are an elite cinematic YouTube horror documentary creator. Output strictly raw JSON."},
-                {"role": "user", "content": prompt}
-            ]
-        }
-        r = requests.post(url, json=payload, timeout=REQUEST_TIMEOUT)
-        if r.status_code == 200:
-            res_data = r.json()
-            if "choices" in res_data and len(res_data["choices"]) > 0:
-                content = res_data["choices"][0].get("message", {}).get("content", "")
-                if content:
-                    return clean_json_response(content)
-            elif "content" in res_data:
-                return clean_json_response(res_data["content"])
-    except Exception as e:
-        print(f"⚠️ Internet AI 1-usul: {e}")
+    for url, model in engines:
+        try:
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": "You are a professional mystery scriptwriter. Return only pure JSON."},
+                    {"role": "user", "content": prompt}
+                ]
+            }
+            r = requests.post(clean_url(url), json=payload, timeout=REQUEST_TIMEOUT)
+            if r.status_code == 200:
+                res_data = r.json()
+                if "choices" in res_data and len(res_data["choices"]) > 0:
+                    content = res_data["choices"][0].get("message", {}).get("content", "")
+                    if content:
+                        return clean_json_response(content)
+        except Exception:
+            continue
 
+    # Yedek doğrudan GET motoru
     try:
-        url = clean_url(f"[https://text.pollinations.ai/](https://text.pollinations.ai/){requests.utils.quote(prompt)}?json=true")
-        r = requests.get(url, timeout=REQUEST_TIMEOUT)
+        get_url = clean_url(f"[https://text.pollinations.ai/](https://text.pollinations.ai/){requests.utils.quote(prompt)}?json=true")
+        r = requests.get(get_url, timeout=REQUEST_TIMEOUT)
         if r.status_code == 200 and r.text:
             return clean_json_response(r.text)
-    except Exception as e:
-        print(f"⚠️ Internet AI 2-usul: {e}")
+    except Exception:
+        pass
 
     return None
 
-def generate_emergency_story(winning_theme, mode, episode_num=1):
-    print("🚨 Avtonom kinematik dvigatel ishga tushdi...")
-    seed = random.randint(100, 999)
+# ============================================================
+# ÇEVRİMDIŞI 40 YILLIK TÜKENMEZ JENERATÖR
+# ============================================================
+
+def generate_emergency_story(mode, past_titles, past_hooks, episode_num=1):
+    print("🚨 40 yıllık kombinatorik dinamik kurgu motoru devrede...")
+
+    loc = random.choice(LOCATIONS)
+    vessel = random.choice(VESSELS)
+    creature = random.choice(CREATURES)
+    evt = random.choice(EVENTS)
+    climax = random.choice(CLIMAXES)
+    
+    depth = random.randint(15, 38)
+    file_code = f"NAV-LOG-{random.randint(100, 999)}-{chr(random.randint(65, 90))}"
 
     hooks = [
-        "At 36,000 feet inside the Mariana Trench, the submarine's thermal cameras detected a creature larger than a battleship.",
-        "Declassified audio logs confirm the underwater expedition did not disappear from pressure.",
-        "Our deep-sea floodlights hit something ancient sleeping on the ocean floor... and it opened its eyes."
+        f"At {depth},000 feet beneath {loc}, {vessel} intercepted an impossible biological heartbeat.",
+        f"Declassified military black boxes confirm {vessel} was dragged downward into {loc}.",
+        f"Hydrophone Station Echo registered catastrophic titanium collapse in {loc} right after this sound was logged.",
+        f"Telemetry recovered from {vessel} reveals something ancient was disturbed at {depth},000 feet."
     ]
 
-    selected_hook = random.choice(hooks)
+    selected_hook = hooks[0]
+    for h in hooks:
+        if h not in past_hooks:
+            selected_hook = h
+            break
+
     script = (
-        f"{selected_hook} Visual sensors locked onto an impossible silhouette moving against the ocean currents. "
-        f"The sonar operator reported high-frequency acoustic clicks that shattered the submersible's external hull microphones. "
-        f"When primary spotlights were turned to maximum intensity, the entire trench floor shifted. "
-        f"It was not a seafloor at all—it was the coiled body of a colossal predatory leviathan. "
-        f"The research crew initiated emergency ballast blow, but shadows in the deep move faster than titanium can ascend."
+        f"{selected_hook} "
+        f"Emergency sensors indicated that {evt}. "
+        f"The recovered acoustic telemetry confirmed {creature} was circling the expedition hull in absolute darkness. "
+        f"When secondary high-output floodlights pierced the abyssal water, the crew realized the seafloor was rising beneath them. "
+        f"{climax} "
+        f"Naval command sealed telemetry file {file_code} under permanent classification protocol."
     )
 
     aspect = "16:9" if mode in ["long_3min", "series_4min", "post"] else "9:16"
-    horror_prompts = [
-        f"{aspect} photorealistic 8k terrifying gigantic deep sea leviathan serpent opening massive jaws, diver headlight illuminating sharp teeth, dark abyss, Unreal Engine 5",
-        f"{aspect} photorealistic 8k gigantic ancient squid monster tentacles wrapping around military submarine, underwater emergency red lights, hyperdetailed cinematic horror",
-        f"{aspect} photorealistic 8k deep ocean exploration diver hovering in black water looking at massive glowing bioluminescent eyes in Mariana trench, 8k",
-        f"{aspect} photorealistic 8k monstrous abyssal predator with needle teeth lunging toward underwater camera, volumetric blue underwater lights, Octane render"
+    prompts_pool = [
+        f"{aspect} photorealistic 8k terrifying colossal {creature} lunging toward {vessel} searchlights in dark abyss, murky underwater fog, Unreal Engine 5",
+        f"{aspect} photorealistic 8k massive ancient sea leviathan jaws closing over submarine in {loc}, emergency red warning beacons, Octane render",
+        f"{aspect} photorealistic 8k deep sea exploration diver floating into pitch black trench looking directly into glowing titan eyes, hyperdetailed",
+        f"{aspect} photorealistic 8k crushed titanium wreckage of {vessel} surrounded by bioluminescent horrors on ocean floor, cinematic horror"
     ]
 
-    scenes_count = 12 if mode == "shorts" else (36 if mode == "long_3min" else 48)
-    sentences = [s.strip() for s in script.split(".") if len(s.strip()) > 5]
+    target_count = 12 if mode == "shorts" else (36 if mode == "long_3min" else 48)
+    sentences = [s.strip() for s in script.split(".") if len(s.strip()) > 4]
 
     scenes = []
-    for i in range(scenes_count):
+    for i in range(target_count):
         txt = sentences[i % len(sentences)]
-        p = horror_prompts[i % len(horror_prompts)]
+        p = prompts_pool[i % len(prompts_pool)]
         scenes.append({"text": txt, "prompt": p})
 
-    title = f"What Lurks At 36,000 Feet Below 🌊 #Shorts"
+    titles = [
+        f"What Sank {vessel}? #{random.randint(10, 999)} #Shorts",
+        f"The {loc.split('inside')[0].split('at')[0].strip()} Breach #Shorts",
+        f"Do Not Dive Into {loc.split('beneath')[0].strip()} 🌊 #Shorts",
+        f"Classified Contact At {depth},000 Feet Below #Shorts"
+    ]
+
+    selected_title = titles[0]
+    for t in titles:
+        if t not in past_titles:
+            selected_title = t
+            break
+
     if mode == "series_4min":
-        title = f"ABYSS ARCHIVES - Episode {episode_num}: The Trench Leviathan"
+        selected_title = f"ABYSS ARCHIVES - Episode {episode_num}: The {loc.split('at')[0].strip()}"
     elif mode == "long_3min":
-        title = f"The Unexplained Pacific Trench Breach #{seed}"
+        selected_title = f"Declassified: The Last Dive of {vessel} in {loc.split('inside')[0].strip()}"
 
     return {
-        "title": title,
+        "title": selected_title,
         "hook": selected_hook,
         "script": script,
         "scenes": scenes,
-        "text": f"Expedition Log #{seed}: Deep sonar breach detected. What is guarding the abyss?"
+        "text": f"Incident Record {file_code}: Contact terminated in {loc}. What truly controls the abyss?"
     }
 
 def get_unique_story(winning_theme, past_titles=None, past_hooks=None, mode="shorts", episode_num=1):
@@ -274,12 +346,17 @@ def get_unique_story(winning_theme, past_titles=None, past_hooks=None, mode="sho
 
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
 
+    # 1. Çoklu internet AI rotalarını dene
     result = fetch_internet_ai(prompt)
     if result:
         try:
-            return validate_story(result, mode)
+            valid_data = validate_story(result, mode)
+            if valid_data["title"] not in past_titles and valid_data["hook"] not in past_hooks:
+                print("✅ İnternet AI üzerinden özgün, benzersiz senaryo alındı.")
+                return valid_data
         except Exception:
             pass
 
-    fallback_data = generate_emergency_story(winning_theme, mode, episode_num)
+    # 2. İnternet kesilse bile milyonlarca permütasyona sahip dinamik yedek motor
+    fallback_data = generate_emergency_story(mode, past_titles, past_hooks, episode_num)
     return validate_story(fallback_data, mode)
