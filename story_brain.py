@@ -95,43 +95,54 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
 def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", episode_num=1):
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
 
-    # 1. Gemini (Eng so'nggi gemini-3.8-flash modeliga yangilandi)
+    # 1. Gemini
     gemini_key = os.environ.get("GEMINI_API_KEY")
     if gemini_key:
-        try:
-            print(f"🧠 Gemini ishga tushdi ({mode.upper()})...")
-            client = genai.Client(api_key=gemini_key)
-            res = client.models.generate_content(model="gemini-3.8-flash", contents=prompt)
-            return clean_json_response(res.text)
-        except Exception as e:
-            print(f"⚠️ Gemini xatoligi: {e}")
+        for model_name in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+            try:
+                print(f"🧠 Gemini ({model_name}) ishga tushdi ({mode.upper()})...")
+                client = genai.Client(api_key=gemini_key)
+                res = client.models.generate_content(model=model_name, contents=prompt)
+                return clean_json_response(res.text)
+            except Exception as e:
+                print(f"⚠️ Gemini ({model_name}) xatoligi: {e}")
 
-    # 2. DeepSeek (Toza to'g'ri URL)
+    # 2. DeepSeek
     deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
     if deepseek_key:
         try:
             print(f"🧠 DeepSeek ishga tushdi ({mode.upper()})...")
-            r = requests.post(
-                "[https://api.deepseek.com/v1/chat/completions](https://api.deepseek.com/v1/chat/completions)",
-                headers={"Authorization": f"Bearer {deepseek_key}", "Content-Type": "application/json"},
-                json={"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "response_format": {"type": "json_object"}},
-                timeout=100
-            )
+            url = "https://api.deepseek.com/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {deepseek_key.strip()}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "deepseek-chat",
+                "messages": [{"role": "user", "content": prompt}],
+                "response_format": {"type": "json_object"}
+            }
+            r = requests.post(url, headers=headers, json=payload, timeout=90)
             return json.loads(r.json()["choices"][0]["message"]["content"])
         except Exception as e:
             print(f"⚠️ DeepSeek xatoligi: {e}")
 
-    # 3. Groq (Toza to'g'ri URL)
+    # 3. Groq
     groq_key = os.environ.get("GROQ_API_KEY")
     if groq_key:
         try:
             print(f"🧠 Groq ishga tushdi ({mode.upper()})...")
-            r = requests.post(
-                "[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)",
-                headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-                json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": prompt}], "response_format": {"type": "json_object"}},
-                timeout=70
-            )
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {groq_key.strip()}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "user", "content": prompt}],
+                "response_format": {"type": "json_object"}
+            }
+            r = requests.post(url, headers=headers, json=payload, timeout=60)
             return json.loads(r.json()["choices"][0]["message"]["content"])
         except Exception as e:
             print(f"⚠️ Groq xatoligi: {e}")
