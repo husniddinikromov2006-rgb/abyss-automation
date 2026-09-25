@@ -48,9 +48,10 @@ VOICE = "en-US-ChristopherNeural"
 def get_youtube_service():
     token_data = os.environ.get("YOUTUBE_TOKEN_JSON")
     if token_data:
-        creds = Credentials.from_authorized_user_info(json.loads(token_data), SCOPES)
+        info = json.loads(token_data)
+        creds = Credentials.from_authorized_user_info(info)
     elif os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+        creds = Credentials.from_authorized_user_file("token.json")
     else:
         raise FileNotFoundError("YOUTUBE_TOKEN_JSON topilmadi.")
 
