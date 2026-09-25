@@ -4,18 +4,11 @@ import time
 import re
 import requests
 
-try:
-    from google import genai
-except ImportError:
-    genai = None
-
 # ============================================================
 # CONFIG
 # ============================================================
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-POLLINATIONS_URL = "https://text.pollinations.ai/"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 REQUEST_TIMEOUT = 90
 
 # ============================================================
@@ -31,6 +24,39 @@ def clean_url(url_str):
         return match.group(0)
     return url_str
 
+def extract_valid_json(text):
+    start = text.find("{")
+    if start == -1:
+        raise ValueError("Matnda { topilmadi")
+
+    depth = 0
+    in_string = False
+    escape = False
+
+    for i in range(start, len(text)):
+        char = text[i]
+
+        if char == '"' and not escape:
+            in_string = not in_string
+        elif char == '\\' and in_string:
+            escape = not escape
+            continue
+
+        if not in_string:
+            if char == '{':
+                depth += 1
+            elif char == '}':
+                depth -= 1
+                if depth == 0:
+                    return text[start:i+1]
+        escape = False
+
+    end = text.rfind("}")
+    if end > start:
+        return text[start:end+1]
+
+    raise ValueError("To'liq yopilgan JSON bloki topilmadi")
+
 def clean_json_response(raw_text):
     if not raw_text:
         raise ValueError("AI bo'sh javob qaytardi.")
@@ -40,12 +66,9 @@ def clean_json_response(raw_text):
     text = re.sub(r"^```\s*", "", text)
     text = re.sub(r"\s*```$", "", text).strip()
 
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        text = text[start:end + 1]
+    json_candidate = extract_valid_json(text)
+    data = json.loads(json_candidate)
 
-    data = json.loads(text)
     if not isinstance(data, dict):
         raise ValueError("AI javobi JSON obyekt emas.")
     return data
@@ -179,71 +202,85 @@ def validate_story(data, mode):
     return data
 
 # ============================================================
-# GEMINI GENERATOR (Retry & Backoff)
+# 1. GROQ GENERATOR (Tezkor va barqaror)
 # ============================================================
 
-def generate_with_gemini(prompt):
-    if not GEMINI_API_KEY or genai is None:
+def generate_with_groq(prompt):
+    if not GROQ_API_KEY:
         return None
 
-    try:
-        print(f"🧠 Gemini ({GEMINI_MODEL}) ishga tushmoqda...")
-        client = genai.Client(api_key=GEMINI_API_KEY)
+    url = clean_url("[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)")
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
 
-        for attempt in range(1, 4):
-            try:
-                print(f"   Gemini urinish {attempt}/3...")
-                response = client.models.generate_content(
-                    model=GEMINI_MODEL,
-                    contents=prompt
-                )
-                if response and response.text:
-                    print("✅ Gemini javob berdi.")
-                    return clean_json_response(response.text)
-            except Exception as e:
-                print(f"⚠️ Gemini urinish {attempt} xatosi: {e}")
-                if attempt < 3:
-                    time.sleep(4 * attempt)
-    except Exception as e:
-        print(f"⚠️ Gemini ishga tushmadi: {e}")
+    models = ["llama-3.1-8b-instant", "llama3-70b-8192"]
+
+    for model in models:
+        try:
+            print(f"🧠 Groq ({model}) ishga tushmoqda...")
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": "You are a professional documentary script JSON generator. Output only valid raw JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                "response_format": {"type": "json_object"}
+            }
+            r = requests.post(url, headers=headers, json=payload, timeout=45)
+            if r.status_code == 200:
+                data = r.json()
+                content = data["choices"][0]["message"]["content"]
+                print(f"✅ Groq ({model}) javob berdi.")
+                return clean_json_response(content)
+            else:
+                print(f"⚠️ Groq ({model}) status: {r.status_code}")
+        except Exception as e:
+            print(f"⚠️ Groq ({model}) xatosi: {e}")
+            time.sleep(1)
 
     return None
 
 # ============================================================
-# POLLINATIONS GENERATOR (Mutlaqo bepul, Kalitsiz!)
+# 2. POLLINATIONS GENERATOR (Kalitsiz zaxira)
 # ============================================================
 
 def generate_with_pollinations(prompt):
     print("🧠 Pollinations zaxira AI ishga tushmoqda...")
-    
-    # 1-usul: OpenAI Endpoint orqali
+
+    # 1. OpenAI Endpoint
     try:
         url = clean_url("[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)")
         payload = {
             "model": "openai",
             "messages": [
-                {"role": "system", "content": "You are a professional documentary script JSON generator. Output only valid raw JSON."},
+                {"role": "system", "content": "You are a JSON generator. Return only raw valid JSON."},
                 {"role": "user", "content": prompt}
-            ],
-            "response_format": {"type": "json_object"}
+            ]
         }
-        r = requests.post(url, json=payload, timeout=60)
+        r = requests.post(url, json=payload, timeout=REQUEST_TIMEOUT)
         if r.status_code == 200:
-            res_data = r.json()
-            if "choices" in res_data and len(res_data["choices"]) > 0:
-                content = res_data["choices"][0]["message"]["content"]
-                return clean_json_response(content)
+            try:
+                res_data = r.json()
+                if "choices" in res_data and len(res_data["choices"]) > 0:
+                    content = res_data["choices"][0].get("message", {}).get("content", "")
+                    if content:
+                        return clean_json_response(content)
+            except Exception:
+                pass
+            return clean_json_response(r.text)
     except Exception as e:
-        print(f"⚠️ Pollinations A usuli o'tmadi: {e}")
+        print(f"⚠️ Pollinations A usuli: {e}")
 
-    # 2-usul: To'g'ridan-to'g'ri prompt jo'natish
+    # 2. GET Endpoint
     try:
         url = clean_url(f"[https://text.pollinations.ai/](https://text.pollinations.ai/){requests.utils.quote(prompt)}?json=true")
-        r = requests.get(url, timeout=60)
+        r = requests.get(url, timeout=REQUEST_TIMEOUT)
         if r.status_code == 200 and r.text:
             return clean_json_response(r.text)
     except Exception as e:
-        print(f"⚠️ Pollinations B usuli o'tmadi: {e}")
+        print(f"⚠️ Pollinations B usuli: {e}")
 
     return None
 
@@ -257,15 +294,15 @@ def get_unique_story(winning_theme, past_titles=None, past_hooks=None, mode="sho
 
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
 
-    # 1. Gemini
-    result = generate_with_gemini(prompt)
+    # 1. Groq
+    result = generate_with_groq(prompt)
     if result:
         try:
             return validate_story(result, mode)
         except Exception as e:
-            print(f"⚠️ Gemini JSON validatsiya xatosi: {e}")
+            print(f"⚠️ Groq JSON validatsiya xatosi: {e}")
 
-    # 2. Pollinations Fallback
+    # 2. Pollinations
     result = generate_with_pollinations(prompt)
     if result:
         try:
