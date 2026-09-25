@@ -1,8 +1,16 @@
 import os
 import json
 import time
+import re
 import requests
 from google import genai
+
+def clean_url(url_str):
+    """Har qanday markdown, qavs va ortiqcha belgilarni tozalab, sof URL ajratadi"""
+    match = re.search(r'https?://[^\s\)\]\"\']+', url_str)
+    if match:
+        return match.group(0)
+    return url_str.strip()
 
 def clean_json_response(raw_text):
     text = raw_text.strip()
@@ -95,28 +103,29 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
 def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", episode_num=1):
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
 
-    # 1. GEMINI (Google talab qilgan yagona to'g'ri model: gemini-3.8-flash)
+    # 1. GEMINI
     gemini_key = os.environ.get("GEMINI_API_KEY")
     if gemini_key:
         try:
             client = genai.Client(api_key=gemini_key.strip())
             for attempt in range(1, 4):
                 try:
-                    print(f"🧠 Gemini (gemini-3.8-flash) urinish {attempt}/3...")
+                    print(f"🧠 Gemini urinish {attempt}/3...")
                     res = client.models.generate_content(model="gemini-3.8-flash", contents=prompt)
                     if res and res.text:
                         return clean_json_response(res.text)
                 except Exception as ge:
                     print(f"⚠️ Gemini urinish {attempt} kutilmoqda: {ge}")
                     if attempt < 3:
-                        time.sleep(4 * attempt)
+                        time.sleep(3)
         except Exception as e:
             print(f"⚠️ Gemini xatoligi: {e}")
 
-    # 2. GROQ (Toza URL string, markdown belgilarsiz)
+    # 2. GROQ (clean_url orqali har qanday xato format tozalab olinadi)
     groq_key = os.environ.get("GROQ_API_KEY")
     if groq_key:
-        groq_url = "[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)"
+        raw_url = "[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)"
+        groq_url = clean_url(raw_url)
         groq_models = ["llama-3.1-8b-instant", "llama3-70b-8192"]
         for g_model in groq_models:
             try:
@@ -130,7 +139,7 @@ def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", epis
                     "messages": [{"role": "user", "content": prompt}],
                     "response_format": {"type": "json_object"}
                 }
-                r = requests.post(groq_url, headers=headers, json=payload, timeout=40)
+                r = requests.post(groq_url, headers=headers, json=payload, timeout=30)
                 if r.status_code == 200:
                     data = r.json()
                     return json.loads(data["choices"][0]["message"]["content"])
@@ -139,10 +148,11 @@ def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", epis
             except Exception as e:
                 print(f"⚠️ Groq ({g_model}) xatoligi: {e}")
 
-    # 3. ZAXIRA (Pollinations Text API - toza URL)
-    print(f"🧠 Zaxira AI ishga tushdi...")
+    # 3. ZAXIRA POLLINATIONS (Tozalangan URL bilan)
+    print("🧠 Zaxira AI ishga tushdi...")
     try:
-        poll_url = "[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)"
+        raw_poll = "[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)"
+        poll_url = clean_url(raw_poll)
         payload = {
             "model": "openai",
             "messages": [
@@ -151,7 +161,7 @@ def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", epis
             ],
             "response_format": {"type": "json_object"}
         }
-        pr = requests.post(poll_url, json=payload, timeout=60)
+        pr = requests.post(poll_url, json=payload, timeout=45)
         if pr.status_code == 200:
             return json.loads(pr.json()["choices"][0]["message"]["content"])
     except Exception as pe:
