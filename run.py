@@ -36,13 +36,12 @@ from googleapiclient.http import MediaFileUpload
 
 from story_brain import get_unique_story
 
-SCOPES = [
-    "https://www.googleapis.com/auth/youtube"
-]
+# 1. Absolute Path sozlamalari
+BASE_DIR = Path(__file__).resolve().parent
+HISTORY_FILE = BASE_DIR / "history.json"
+OUT_DIR = BASE_DIR / "media_workspace"
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-HISTORY_FILE = "history.json"
-OUT_DIR = Path("media_workspace")
-OUT_DIR.mkdir(exist_ok=True)
 VOICE = "en-US-ChristopherNeural"
 
 def get_youtube_service():
@@ -50,8 +49,8 @@ def get_youtube_service():
     if token_data:
         info = json.loads(token_data)
         creds = Credentials.from_authorized_user_info(info)
-    elif os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json")
+    elif (BASE_DIR / "token.json").exists():
+        creds = Credentials.from_authorized_user_file(str(BASE_DIR / "token.json"))
     else:
         raise FileNotFoundError("YOUTUBE_TOKEN_JSON topilmadi.")
 
@@ -61,7 +60,7 @@ def get_youtube_service():
     return build("youtube", "v3", credentials=creds)
 
 def load_history():
-    if not os.path.exists(HISTORY_FILE):
+    if not HISTORY_FILE.exists():
         return {
             "uploaded_videos": [],
             "past_titles": [],
@@ -126,30 +125,46 @@ def analyze_channel_performance(youtube, history):
 
         if winning_title:
             history["best_theme"] = f"Audience engagement theme: {winning_title}"
-            print(f"📊 KANAL TAHLILI: Eng yuqori ko'rsatkich -> {winning_title} (Ball: {best_score})")
+            print(f"📊 KANAL TAHLILI: Eng muvaffaqiyatli mavzu -> {winning_title} (Ball: {best_score})")
 
     except Exception as e:
         print(f"⚠️ Kanal tahlili ogohlantirishi: {e}")
 
     return history
 
+def create_fallback_image(out_path, width, height):
+    """AI rasm kelmasa yoki xatolik bo'lsa, qorong'u okean tasvirini yasovchi zaxira"""
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    img = PIL.Image.new("RGB", (width, height), (3, 8, 18))
+    draw = ImageDraw.Draw(img)
+    # Tasvirga chuqurlik gradiyent va effekt berish
+    for y in range(0, height, 15):
+        alpha = int(25 * (y / height))
+        draw.line([(0, y), (width, y)], fill=(10 + alpha, 20 + alpha, 40 + alpha), width=15)
+    img.save(str(out_path), "JPEG")
+    return True
+
 def download_ai_image(prompt, out_path, width, height):
     encoded = urllib.parse.quote(prompt)
     seed = random.randint(1000, 999999)
-    url_flux = f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&seed={seed}&model=flux&nologo=true"
-    url_turbo = f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&seed={seed}&model=turbo&nologo=true"
+    url_flux = f"[https://image.pollinations.ai/prompt/](https://image.pollinations.ai/prompt/){encoded}?width={width}&height={height}&seed={seed}&model=flux&nologo=true"
+    url_turbo = f"[https://image.pollinations.ai/prompt/](https://image.pollinations.ai/prompt/){encoded}?width={width}&height={height}&seed={seed}&model=turbo&nologo=true"
 
     for url in [url_flux, url_turbo]:
         for _ in range(2):
             try:
-                r = requests.get(url, timeout=35)
-                if r.status_code == 200 and len(r.content) > 15000:
+                r = requests.get(url, timeout=30)
+                if r.status_code == 200 and len(r.content) > 10000:
                     with open(str(out_path), "wb") as f:
                         f.write(r.content)
                     return True
             except Exception:
                 time.sleep(1.5)
-    return False
+    
+    # Agar yuklanmasa darhol zaxira kadr yaratiladi
+    print(f"⚠️ Rasm yuklanmadi, zaxira kadr yaratilmoqda: {out_path.name}")
+    return create_fallback_image(out_path, width, height)
 
 def make_horror_soundscape(duration):
     sample_rate = 44100
@@ -233,6 +248,10 @@ def create_subtitle_clips(scenes, target_w, target_h, is_horizontal=False):
     return sub_clips, temp_imgs
 
 def render_dynamic_movie(scenes, voice_file, output_file, total_duration, target_w, target_h, is_horizontal=False):
+    if not scenes:
+        raise RuntimeError("Render qilish uchun scenes topilmadi!")
+
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     voice_audio = AudioFileClip(str(voice_file))
     horror_audio = make_horror_soundscape(total_duration)
     final_audio = CompositeAudioClip([voice_audio, horror_audio]).subclip(0, total_duration)
@@ -322,6 +341,18 @@ def main():
     hook = story.get("hook", "")
     scenes = story.get("scenes", [])
 
+    # Scenes uchun himoya
+    if not isinstance(scenes, list) or len(scenes) == 0:
+        raise RuntimeError("AI javobida scenes yo'q yoki scenes bo'sh!")
+
+    valid_scenes = []
+    for sc in scenes:
+        if isinstance(sc, dict):
+            sc.setdefault("text", "The abyss remains unredacted.")
+            sc.setdefault("prompt", "16:9 photorealistic dark deep ocean military submarine horror scene")
+            valid_scenes.append(sc)
+    scenes = valid_scenes
+
     print(f"\n⚡ YARATILAYOTGAN FORMAT: {args.mode.upper()}")
     print(f"🎬 Video nomi: {title}")
     print(f"🎯 Hook (0-3s): \"{hook}\"")
@@ -352,9 +383,8 @@ def main():
     media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
     res = youtube.videos().insert(part="snippet,status", body=body, media_body=media).execute()
     vid = res["id"]
-    print(f"🚀 VIDEO MUVAFFAQIYATLI YUKLANDI: https://youtu.be/{vid}")
+    print(f"🚀 VIDEO MUVAFFAQIYATLI YUKLANDI: [https://youtu.be/](https://youtu.be/){vid}")
 
-    # Xotirani yangilash
     history["uploaded_videos"].append(vid)
     history["past_titles"].append(title)
     if hook:
