@@ -1,17 +1,34 @@
-name: YouTube Abyss & Declassified Secrets Automation
+name: YouTube Abyss Ultimate Automation
 
 on:
   schedule:
-    # 4 TA KUNLIK SHORTS (AQSH peak vaqtlari bo'yicha)
-    - cron: '0 13 * * *'   # Shorts 1: AQSH 09:00 AM (Toshkent 18:00)
-    - cron: '0 17 * * *'   # Shorts 2: AQSH 01:00 PM (Toshkent 22:00)
-    - cron: '0 21 * * *'   # Shorts 3: AQSH 05:00 PM (Toshkent 02:00)
-    - cron: '0 1 * * *'    # Shorts 4: AQSH 09:00 PM (Toshkent 06:00)
-    
-    # HAR KUNI CHIQADIGAN 3 DAQIQALIK TITANLAR URUSHI VIDEOSI
-    - cron: '30 18 * * *'  # Har kuni AQSH 02:30 PM (Toshkent 23:30)
+    # 1. KUNLIK 4 TA SHORTS (Toshkent 18:00, 21:00, 00:00, 03:00)
+    - cron: '0 13 * * *'
+    - cron: '0 16 * * *'
+    - cron: '0 19 * * *'
+    - cron: '0 22 * * *'
+
+    # 2. HAR KUNI 1 TA 3 MINUTLIK TO'LIQ VIDEO (Toshkent 22:30 / 17:30 UTC)
+    - cron: '30 17 * * *'
+
+    # 3. HAFTASIGA 2 TA 4 MINUTLIK QISMLI SERIAL (Chorshanba va Shanba Toshkent 23:30 / 18:30 UTC)
+    - cron: '30 18 * * 3,6'
+
+    # 4. HAFTASIGA 2 TA POST / YANGILIK (Seshanba va Juma Toshkent 20:00 / 15:00 UTC)
+    - cron: '0 15 * * 2,5'
 
   workflow_dispatch:
+    inputs:
+      video_mode:
+        description: 'Qaysi formatni ishga tushirmoqchisiz?'
+        required: true
+        default: 'long_3min'
+        type: choice
+        options:
+          - shorts
+          - long_3min
+          - series_4min
+          - post
 
 jobs:
   build-and-upload:
@@ -28,28 +45,28 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
           pip install --upgrade pip
-          pip install requests edge-tts moviepy==1.0.3 google-api-python-client google-auth-oauthlib google-auth-httplib2 pillow numpy
+          pip install requests edge-tts moviepy==1.0.3 google-genai google-api-python-client google-auth-oauthlib google-auth-httplib2 pillow numpy
 
-      - name: Run Content Pipeline
+      - name: Determine Mode and Execute
         env:
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
-          # Agar soat 18:30 UTC bo'lsa, 3 daqiqalik katta video yasaladi, qolgan soatlarda Shorts
-          if [ "${{ github.event.schedule }}" = "30 18 * * *" ]; then
-            echo "🚀 Har kunlik 3 daqiqalik Mega Urush videosi yuklanmoqda..."
-            python run.py long
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SELECTED_MODE="${{ github.event.inputs.video_mode }}"
+          elif [ "${{ github.event.schedule }}" = "30 17 * * *" ]; then
+            SELECTED_MODE="long_3min"
+          elif [ "${{ github.event.schedule }}" = "30 18 * * 3,6" ]; then
+            SELECTED_MODE="series_4min"
+          elif [ "${{ github.event.schedule }}" = "0 15 * * 2,5" ]; then
+            SELECTED_MODE="post"
           else
-            echo "⚡ Kunlik Shorts chiqarilmoqda..."
-            python run.py short
+            SELECTED_MODE="shorts"
           fi
 
-      - name: Save History
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add history.json || true
-          git commit -m "Auto-update history [skip ci]" || true
-          git push || true
+          echo "🚀 ISHGA TUSHIRILAYOTGAN REJIM: $SELECTED_MODE"
+          python run.py --mode=$SELECTED_MODE
