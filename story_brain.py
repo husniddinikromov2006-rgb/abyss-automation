@@ -18,7 +18,6 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
     past_hooks_str = "\n- ".join(past_hooks[-15:]) if past_hooks else "None yet"
 
     if mode == "series_4min":
-        # Haftasiga 2 marta: 4 minutlik qismli hujjatli film seriali (~520 so'z, 48 ta kadr)
         return (
             f"You are a top-tier Netflix/HBO investigative horror director creating an episodic deep-sea military series.\n"
             f"Write EPISODE {episode_num} of an ongoing serialized dark ocean expedition documentary (strictly 4 minutes spoken pace, ~520 words).\n"
@@ -42,7 +41,6 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
         )
 
     elif mode == "long_3min":
-        # Har kuni 1 ta: 3 minutlik to'liq gorizontal video (~400 so'z, 36 ta kadr)
         return (
             "You are an elite Hollywood mystery-thriller director. Write an intense 3-minute complete standalone horizontal military naval documentary (~400 words).\n"
             f"Context: '{winning_theme}'.\n"
@@ -63,7 +61,6 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
         )
 
     elif mode == "post":
-        # Haftasiga 2 marta: Community Post (Rasm prompti va matn)
         return (
             "You are managing a viral mystery & naval horror YouTube channel community tab.\n"
             "Create an intriguing, engaging Community Post question/poll update that hooks the audience about a declassified deep ocean recovery operation.\n"
@@ -76,7 +73,6 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
         )
 
     else:
-        # Kunlik 4 ta: Shorts (50-60 soniya, 12 ta kadr)
         return (
             "You are an elite horror director. Write an intense US naval abyss horror story (50 seconds spoken pace).\n"
             f"Context: '{winning_theme}'.\n"
@@ -99,16 +95,18 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
 def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", episode_num=1):
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
 
+    # 1. Gemini (Eng so'nggi gemini-3.8-flash modeliga yangilandi)
     gemini_key = os.environ.get("GEMINI_API_KEY")
     if gemini_key:
         try:
-            print(f"🧠 Gemini 2.5 ishga tushdi ({mode.upper()})...")
+            print(f"🧠 Gemini ishga tushdi ({mode.upper()})...")
             client = genai.Client(api_key=gemini_key)
-            res = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+            res = client.models.generate_content(model="gemini-3.8-flash", contents=prompt)
             return clean_json_response(res.text)
         except Exception as e:
             print(f"⚠️ Gemini xatoligi: {e}")
 
+    # 2. DeepSeek (Toza to'g'ri URL)
     deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
     if deepseek_key:
         try:
@@ -123,6 +121,7 @@ def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", epis
         except Exception as e:
             print(f"⚠️ DeepSeek xatoligi: {e}")
 
+    # 3. Groq (Toza to'g'ri URL)
     groq_key = os.environ.get("GROQ_API_KEY")
     if groq_key:
         try:
