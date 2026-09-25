@@ -8,30 +8,30 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
 # ============================================================
-# ПАРАҚША БАПТАУЛАРЫ
+# SAHIFA SOZLAMALARI
 # ============================================================
 st.set_page_config(
-    page_title="ABYSS COMMAND CENTER // CLASSIFIED",
+    page_title="ABYSS BOSHQARUV MARKAZI // MAXFIY",
     page_icon="🔱",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # ============================================================
-# CYBER-ABYSS PREMIUM DESIGN & CSS
+# CYBER-ABYSS PREMIUM DIZAYN & CSS
 # ============================================================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap');
 
-    /* Негізгі фон мен қаріп */
+    /* Asosiy fon va shrift */
     .stApp {
         background: radial-gradient(circle at 50% 10%, #061527 0%, #020712 60%, #000206 100%);
         color: #c8d6e5;
         font-family: 'Rajdhani', sans-serif;
     }
 
-    /* Басты тақырып */
+    /* Asosiy sarlavha */
     .abyss-header {
         font-family: 'Orbitron', sans-serif;
         background: linear-gradient(90deg, #00f2fe 0%, #4facfe 50%, #00c6ff 100%);
@@ -52,7 +52,7 @@ st.markdown("""
         margin-bottom: 25px;
     }
 
-    /* Glassmorphism Метрикалық Карточкалар */
+    /* Glassmorphism Metrika Kartochkalari */
     .metric-box {
         background: rgba(8, 24, 48, 0.55);
         backdrop-filter: blur(16px);
@@ -83,7 +83,7 @@ st.markdown("""
         letter-spacing: 1px;
     }
 
-    /* Видео талдау карталары */
+    /* Video tahlil kartalari */
     .video-card {
         background: rgba(10, 25, 47, 0.6);
         backdrop-filter: blur(12px);
@@ -101,7 +101,7 @@ st.markdown("""
         box-shadow: 0 6px 25px rgba(0, 0, 0, 0.7);
     }
 
-    /* Бейджтер (Бағалау статустары) */
+    /* Baholash nishonlari */
     .badge-viral {
         background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);
         color: #fff;
@@ -129,7 +129,7 @@ st.markdown("""
         font-weight: 700;
     }
 
-    /* Табтар дизайны */
+    /* Tablar dizayni */
     .stTabs [data-baseweb="tab-list"] {
         gap: 12px;
     }
@@ -151,7 +151,7 @@ st.markdown("""
         box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
     }
 
-    /* Түйме стилі */
+    /* Asosiy tugma */
     .stButton>button {
         background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%);
         color: white;
@@ -174,7 +174,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# ДЕРЕКТЕРДІ БАЙЛАНЫСТЫРУ
+# MA'LUMOTLARNI ULASH
 # ============================================================
 GITHUB_TOKEN = os.getenv("GH_PAT") or os.getenv("GITHUB_TOKEN")
 REPO_NAME = os.getenv("GITHUB_REPOSITORY", "husniddinikromov2006-rgb/abyss-automation")
@@ -237,7 +237,7 @@ def save_instructions_to_github(data):
         pass
 
     if not GITHUB_TOKEN:
-        return True, "Жергілікті сақталды (GitHub PAT табылмады)"
+        return True, "Mahalliy xotiraga saqlandi (GitHub PAT ulanmagan)"
         
     url = f"https://api.github.com/repos/{REPO_NAME}/contents/{filepath}"
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
@@ -257,28 +257,28 @@ def save_instructions_to_github(data):
 
     r_put = requests.put(url, headers=headers, json=payload)
     if r_put.status_code in [200, 201]:
-        return True, "Бұйрықтар бұлттық жүйеге сәтті жолданды!"
-    return False, f"Қате орын алды: {r_put.text}"
+        return True, "Buyruqlar bulut tizimiga muvaffaqiyatli yetkazildi!"
+    return False, f"Xatolik yuz berdi: {r_put.text}"
 
 # ============================================================
-# БАСТЫ ПАНЕЛЬ
+# ASOSIY PANEL
 # ============================================================
-st.markdown('<div class="abyss-header">ABYSS SECRETS // COMMAND CENTER</div>', unsafe_allow_html=True)
-st.markdown('<div class="abyss-sub">Нейрожүйелік басқару, бейнелер аудиті және жасанды интеллект талдауы</div>', unsafe_allow_html=True)
+st.markdown('<div class="abyss-header">ABYSS SECRETS // BOSHQARUV MARKAZI</div>', unsafe_allow_html=True)
+st.markdown('<div class="abyss-sub">Neyrotizimli boshqaruv, video auditi va sun\'iy intellekt tahlili</div>', unsafe_allow_html=True)
 
 tab_analytics, tab_translate, tab_directives = st.tabs([
-    "📊 АНАЛИТИКА ЖӘНЕ БЕЙНЕ СТАТУСЫ",
-    "🇺🇿 ӨЗБЕКШЕ ДЕРЕК ЖӘНЕ МӘТІНДЕР",
-    "🎮 БОТҚА БҰЙРЫҚТАР БЕРУ ОРТАЛЫҒЫ"
+    "📊 ANALITIKA VA VIDEO STATUSI",
+    "🇺🇿 O'ZBEKCHA MAZMUN VA MATNLAR",
+    "🎮 BOTGA BUYRUQ BERISH MARKAZI"
 ])
 
-# ----------------- TAB 1: АНАЛИТИКА -----------------
+# ----------------- TAB 1: ANALITIKA -----------------
 with tab_analytics:
     yt = get_youtube_service()
     history = load_file_from_github("history.json")
 
     if not yt:
-        st.warning("⚠️ YouTube API тікелей қосылмады. Жүйе жергілікті тарихпен көрсетіліп тұр.")
+        st.warning("⚠️ YouTube API ulanmadi. Tizim mahalliy tarix bilan ko'rsatilmoqda.")
     else:
         try:
             req = yt.channels().list(part="contentDetails,statistics", mine=True)
@@ -290,28 +290,28 @@ with tab_analytics:
                 st.markdown(f"""
                 <div class="metric-box">
                     <div class="metric-val">{int(ch_stats.get('viewCount', 0)):,}</div>
-                    <div class="metric-label">Жалпы қаралым</div>
+                    <div class="metric-label">Jami Ko'rishlar</div>
                 </div>
                 """, unsafe_allow_html=True)
             with m2:
                 st.markdown(f"""
                 <div class="metric-box">
                     <div class="metric-val">{int(ch_stats.get('subscriberCount', 0)):,}</div>
-                    <div class="metric-label">Жазылушылар</div>
+                    <div class="metric-label">Obunachilar</div>
                 </div>
                 """, unsafe_allow_html=True)
             with m3:
                 st.markdown(f"""
                 <div class="metric-box">
                     <div class="metric-val">{ch_stats.get('videoCount', 0)}</div>
-                    <div class="metric-label">Шығарылған бейнелер</div>
+                    <div class="metric-label">Yuklangan Videolar</div>
                 </div>
                 """, unsafe_allow_html=True)
             with m4:
                 st.markdown(f"""
                 <div class="metric-box">
                     <div class="metric-val">100%</div>
-                    <div class="metric-label">Автопилот күйі</div>
+                    <div class="metric-label">Avtopilot Holati</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -326,7 +326,7 @@ with tab_analytics:
                 v_req = yt.videos().list(part="snippet,statistics", id=",".join(v_ids))
                 v_res = v_req.execute()
 
-                st.markdown("### 📡 Соңғы жүктелген бейнелер аудиті")
+                st.markdown("### 📡 So'nggi yuklangan videolar auditi")
                 for item in v_res.get("items", []):
                     title = item["snippet"]["title"]
                     stats = item.get("statistics", {})
@@ -338,11 +338,11 @@ with tab_analytics:
 
                     score = views + (likes * 10)
                     if score > 800:
-                        badge = '<span class="badge-viral">⚡ ӨТЕ ЖОҒАРЫ (VIRAL)</span>'
+                        badge = '<span class="badge-viral">⚡ O\'TA YUQORI (VIRAL)</span>'
                     elif score > 200:
-                        badge = '<span class="badge-high">🔥 СӘТТІ НӘТИЖЕ</span>'
+                        badge = '<span class="badge-high">🔥 A\'LO NATIJA</span>'
                     else:
-                        badge = '<span class="badge-stable">⚖️ ОРТАША ҚАРҚЫН</span>'
+                        badge = '<span class="badge-stable">⚖️ QONIQARLI TEZLIK</span>'
 
                     st.markdown(f"""
                     <div class="video-card">
@@ -353,9 +353,9 @@ with tab_analytics:
                                     <a href="https://youtu.be/{vid_id}" target="_blank" style="color: #00f2fe; text-decoration: none;">{title}</a>
                                 </div>
                                 <div style="margin-top: 6px; font-size: 0.95rem; color: #a4b0be;">
-                                    Көрулер: <b style="color: #fff;">{views:,}</b> | 
-                                    Ұнатулар: <b style="color: #fff;">{likes:,}</b> | 
-                                    Пікірлер: <b style="color: #fff;">{comments}</b>
+                                    Ko'rishlar: <b style="color: #fff;">{views:,}</b> | 
+                                    Layklar: <b style="color: #fff;">{likes:,}</b> | 
+                                    Izohlar: <b style="color: #fff;">{comments}</b>
                                 </div>
                                 <div style="margin-top: 8px;">{badge}</div>
                             </div>
@@ -363,82 +363,82 @@ with tab_analytics:
                     </div>
                     """, unsafe_allow_html=True)
         except Exception as e:
-            st.error(f"Аналитикалық мәліметтерді алу кезіндегі қате: {e}")
+            st.error(f"Analitika ma'lumotlarini olishda xatolik: {e}")
 
-# ----------------- TAB 2: ӨЗБЕКШЕ АУДАРМА ЖӘНЕ МӘТІН -----------------
+# ----------------- TAB 2: O'ZBEKCHA TARJIMA VA MATN -----------------
 with tab_translate:
-    st.markdown("### 🇺🇿 Ағылшынша бейнелердің өзбекше толық түсіндірмесі")
+    st.markdown("### 🇺🇿 Inglizcha videolarning o'zbekcha to'liq tushuntirishi")
     h_data = load_file_from_github("history.json")
     titles = h_data.get("past_titles", [])
     hooks = h_data.get("past_hooks", [])
 
     if not titles:
-        st.info("Тарихта бейнелер тізімі әлі қалыптаспаған.")
+        st.info("Tarixda videolar ro'yxati hali shakllanmagan.")
     else:
         for idx in range(min(12, len(titles))):
             t = titles[-(idx+1)]
-            h = hooks[-(idx+1)] if idx < len(hooks) else "Мәлімет жоқ"
+            h = hooks[-(idx+1)] if idx < len(hooks) else "Ma'lumot yo'q"
 
             with st.expander(f"🎬 #{len(titles)-idx}: {t}"):
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.markdown("**🇺🇸 Түпнұсқа (English):**")
+                    st.markdown("**🇺🇸 Asl inglizcha (English):**")
                     st.code(f"Title: {t}\nHook: {h}", language="markdown")
                 with c2:
-                    st.markdown("**🇺🇿 Өзбекше мазмұны:**")
-                    with st.spinner("Аударылуда..."):
+                    st.markdown("**🇺🇿 O'zbekcha mazmuni:**")
+                    with st.spinner("Tarjima qilinmoqda..."):
                         uz_t = translate_to_uzbek(t)
                         uz_h = translate_to_uzbek(h)
                     st.success(f"📌 **Sarlavha:** {uz_t}")
                     st.info(f"⚡ **Boshlanish jumlasi (Hook):** {uz_h}")
 
-# ----------------- TAB 3: БОТҚА БҰЙРЫҚТАР ОРТАЛЫҒЫ -----------------
+# ----------------- TAB 3: BOTGA BUYRUQ MARKAZI -----------------
 with tab_directives:
-    st.markdown("### 🎮 Нейрожүйеге арнайы нұсқаулықтар мен талаптар енгізу")
-    st.markdown("Осы жерге жазған талаптарыңыз сақталады және бот келесі бейнелерді тек осы бағытта генерациялайды.")
+    st.markdown("### 🎮 Neyrotizimga maxsus ko'rsatma va talablar kiritish")
+    st.markdown("Bu yerga yozgan talablaringiz saqlanadi va bot keyingi videolarni faqat shu yo'nalishda generatsiya qiladi.")
 
     cfg = load_file_from_github("user_instructions.json")
 
     with st.form("custom_directives_panel"):
         user_prompt = st.text_area(
-            "✍️ Арнайы талап немесе бағытты жазыңыз (Өзбекше немесе Орысша):",
+            "✍️ Maxsus talab yoki yo'nalishni yozing (O'zbekcha):",
             value=cfg.get("custom_prompt", "Barcha kadrlarda suvosti yirtqichlari ulkan va g'avvoslar bilan to'qnashuv sahnasi bo'lsin."),
             height=120,
-            help="Мысалы: 'Тек қана 2 бөлімді әскери сүңгуір кеме апаты болсын', 'Тыныш кадрларды мүлде қоспа'"
+            help="Masalan: 'Faqat 2 qismli harbiy suvosti kemasi halokati bo'lsin', 'Tinch kadrlarni umuman qo'shma'"
         )
 
         col1, col2 = st.columns(2)
         with col1:
             horror_mode = st.select_slider(
-                "💀 Қорқыныш және адреналин деңгейі:",
-                options=["Қалыпты деректі фильм", "Шиеленісті мистика", "Тұңғиық қорқынышы (Экстремал Abyss)"],
-                value=cfg.get("horror_level", "Тұңғиық қорқынышы (Экстремал Abyss)")
+                "💀 Qo'rquv va adrenalin darajasi:",
+                options=["Oddiy hujjatli film", "Kuchli mistika", "Tubsiz dahshat (Ekstremal Abyss)"],
+                value=cfg.get("horror_level", "Tubsiz dahshat (Ekstremal Abyss)")
             )
         with col2:
             main_focus = st.selectbox(
-                "🎯 Басты назар аударылатын нысан:",
+                "🎯 Asosiy e'tibor qaratiladigan obyekt:",
                 options=[
-                    "Алып Левиафандар мен Құбыжықтар (Monsters)",
-                    "Апатқа ұшыраған Ядролық Сүңгуір Қайықтар (Submarines)",
-                    "Құпия Әскери Экспедициялар (Military Secrets)",
-                    "Мұхит түбіндегі Жатпланеталық Станциялар (Alien Base)"
+                    "Ulkan Maxluqlar va Yirtqichlar (Monsters)",
+                    "Halokatga uchragan Yadroviy Kemalar (Submarines)",
+                    "Maxfiy Harbiy Ekspeditsiyalar (Military Secrets)",
+                    "Okean tubidagi Notanish Obyektlar (Alien Base)"
                 ],
                 index=0
             )
 
         prohibited = st.text_input(
-            "🚫 Мүлде қолданылмасын (Тыйым салынған тақырыптар):",
-            value=cfg.get("prohibited_topics", "күлкілі кадрлар, қарапайым балықтар, күн сәулесі")
+            "🚫 Umuman ishlatilmasin (Taqiqlangan mavzular):",
+            value=cfg.get("prohibited_topics", "kulgili kadrlar, oddiy baliqlar, quyosh nuri")
         )
 
-        submit_btn = st.form_submit_button("🔱 БҰЙРЫҚТАРДЫ ЖҮЙЕГЕ ЕНГІЗУ ЖӘНЕ САҚТАУ")
+        submit_btn = st.form_submit_button("🔱 BUYRUQLARNI TIZIMGA YUBORISH VA SAQLASH")
         if submit_btn:
             new_data = {
                 "custom_prompt": user_prompt,
                 "horror_level": horror_mode,
                 "target_focus": main_focus,
                 "prohibited_topics": prohibited,
-                "updated_at": str(time.time())
+                "updated_at": str(os.getenv("GITHUB_RUN_ID", "dashboard"))
             }
             ok, msg = save_instructions_to_github(new_data)
             if ok:
