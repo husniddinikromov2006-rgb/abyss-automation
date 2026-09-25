@@ -2,21 +2,8 @@ name: YouTube Abyss Ultimate Automation
 
 on:
   schedule:
-    # --- HAR KUNI 4 TA SHORTS (AQSH EST vaqti: 08:00, 12:00, 16:00, 20:00) ---
-    - cron: '0 12 * * *'   # UTC 12:00 -> EST 08:00 (Shorts 1)
-    - cron: '0 16 * * *'   # UTC 16:00 -> EST 12:00 (Shorts 2)
-    - cron: '0 20 * * *'   # UTC 20:00 -> EST 16:00 (Shorts 3)
-    - cron: '0 0 * * *'    # UTC 00:00 -> EST 20:00 (Shorts 4)
-
-    # --- HAR KUNI 1 TA 3-DAQIQALIK GORIZONTAL VIDEO (AQSH EST: 18:00) ---
-    - cron: '0 22 * * *'   # UTC 22:00 -> EST 18:00 (long_3min)
-
-    # --- HAFTASIGA 2 TA SERIAL 4-MIN (Seshanba va Juma, AQSH EST: 19:00) ---
-    - cron: '0 23 * * 2,5' # UTC 23:00 Seshanba va Juma -> EST 19:00 (series_4min)
-
-    # --- HAFTASIGA 2 TA COMMUNITY POST (Chorshanba va Yakshanba, AQSH EST: 14:00) ---
-    - cron: '0 18 * * 3,0' # UTC 18:00 Chorshanba va Yakshanba -> EST 14:00 (post)
-
+    - cron: '0 13 * * *'
+    - cron: '0 16 * * *'
   workflow_dispatch:
     inputs:
       mode:
@@ -55,21 +42,8 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             SELECTED_MODE="${{ github.event.inputs.mode }}"
           else
-            # Jadval bo'yicha aniq soat va haftaning kunini tekshirish
-            HOUR=$(date -u +%H)
-            DAY=$(date -u +%u) # 1=Dushanba, 2=Seshanba, ..., 7=Yakshanba
-
-            if [ "$HOUR" = "22" ]; then
-              SELECTED_MODE="long_3min"
-            elif [ "$HOUR" = "23" ] && { [ "$DAY" = "2" ] || [ "$DAY" = "5" ]; }; then
-              SELECTED_MODE="series_4min"
-            elif [ "$HOUR" = "18" ] && { [ "$DAY" = "3" ] || [ "$DAY" = "7" ]; }; then
-              SELECTED_MODE="post"
-            else
-              SELECTED_MODE="shorts"
-            fi
+            SELECTED_MODE="shorts"
           fi
-
           echo "🚀 ISHGA TUSHIRILAYOTGAN REJIM: $SELECTED_MODE"
           python run.py --mode=$SELECTED_MODE
 
