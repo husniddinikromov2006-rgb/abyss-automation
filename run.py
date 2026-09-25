@@ -37,9 +37,7 @@ from googleapiclient.http import MediaFileUpload
 from story_brain import get_unique_story
 
 SCOPES = [
-    "[https://www.googleapis.com/auth/youtube.upload](https://www.googleapis.com/auth/youtube.upload)",
-    "[https://www.googleapis.com/auth/youtube.readonly](https://www.googleapis.com/auth/youtube.readonly)",
-    "[https://www.googleapis.com/auth/youtube.force-ssl](https://www.googleapis.com/auth/youtube.force-ssl)"
+    "https://www.googleapis.com/auth/youtube"
 ]
 
 HISTORY_FILE = "history.json"
@@ -137,8 +135,8 @@ def analyze_channel_performance(youtube, history):
 def download_ai_image(prompt, out_path, width, height):
     encoded = urllib.parse.quote(prompt)
     seed = random.randint(1000, 999999)
-    url_flux = f"[https://image.pollinations.ai/prompt/](https://image.pollinations.ai/prompt/){encoded}?width={width}&height={height}&seed={seed}&model=flux&nologo=true"
-    url_turbo = f"[https://image.pollinations.ai/prompt/](https://image.pollinations.ai/prompt/){encoded}?width={width}&height={height}&seed={seed}&model=turbo&nologo=true"
+    url_flux = f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&seed={seed}&model=flux&nologo=true"
+    url_turbo = f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&seed={seed}&model=turbo&nologo=true"
 
     for url in [url_flux, url_turbo]:
         for _ in range(2):
@@ -283,10 +281,8 @@ def render_dynamic_movie(scenes, voice_file, output_file, total_duration, target
                 pass
 
 def post_community_update(youtube, story):
-    """YouTube Community tabiga qiziqarli so'rovnoma/yangilik post qiladi."""
     text = story.get("text", "Declassified expedition log update...")
     print(f"\n📢 COMMUNITY POST YARATILDI:\n{text}")
-    print("ℹ️ Eslatma: YouTube Data API v3 Community tabga rasm joylashni cheklaganligi sababli, bu matn avtomatik ravishda eng so'nggi videoning pinning qilingan izohi (Pinned Comment) sifatida ham ulanadi!")
 
 def main():
     parser = argparse.ArgumentParser()
@@ -355,7 +351,7 @@ def main():
     media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
     res = youtube.videos().insert(part="snippet,status", body=body, media_body=media).execute()
     vid = res["id"]
-    print(f"🚀 VIDEO MUVAFFAQIYATLI YUKLANDI: [https://youtu.be/](https://youtu.be/){vid}")
+    print(f"🚀 VIDEO MUVAFFAQIYATLI YUKLANDI: https://youtu.be/{vid}")
 
     # Xotirani yangilash
     history["uploaded_videos"].append(vid)
