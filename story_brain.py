@@ -4,15 +4,36 @@ import time
 import requests
 from google import genai
 
+
 def clean_json_response(raw_text):
+    """Parse JSON returned by an AI provider, including fenced responses."""
+    if not isinstance(raw_text, str) or not raw_text.strip():
+        raise ValueError("AI provider returned an empty response")
+
     text = raw_text.strip()
-    if text.startswith("```json"):
-        text = text[7:]
-    elif text.startswith("```"):
-        text = text[3:]
+
+    # Remove Markdown code fences if a provider ignores the prompt.
+    if text.startswith("```"):
+        first_newline = text.find("\n")
+        if first_newline != -1:
+            text = text[first_newline + 1:]
+        else:
+            text = text[3:]
     if text.endswith("```"):
         text = text[:-3]
-    return json.loads(text.strip())
+
+    text = text.strip()
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Some models add text around the JSON. Recover the outermost object.
+        start = text.find("{")
+        end = text.rfind("}")
+        if start == -1 or end <= start:
+            raise
+        return json.loads(text[start:end + 1])
+
 
 def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
     past_titles_str = "\n- ".join(past_titles[-15:]) if past_titles else "None yet"
@@ -93,70 +114,111 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
             "}"
         )
 
+
+def request_compatible_provider(url, api_key, model, prompt, timeout=90):
+    """Call an OpenAI-compatible API and return the provider's JSON object."""
+    response = requests.post(
+        url,
+        headers={
+            "Authorization": f"Bearer {api_key.strip()}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.8,
+            "response_format": {"type": "json_object"},
+        },
+        timeout=timeout,
+    )
+
+    if not response.ok:
+        raise RuntimeError(
+            f"HTTP {response.status_code}: {response.text[:500]}"
+        )
+
+    data = response.json()
+    content = data["choices"][0]["message"]["content"]
+    return content if isinstance(content, dict) else clean_json_response(content)
+
+
 def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", episode_num=1):
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
+    provider_errors = []
 
-    # 1. Gemini (Zaxira modellari bilan birma-bir sinash)
-    gemini_key = os.environ.get("GEMINI_API_KEY")
+    # 1. Gemini. The first model is the model recommended by the failed run.
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if gemini_key:
-        client = genai.Client(api_key=gemini_key.strip())
-        models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
-        for m in models_to_try:
-            try:
-                print(f"🧠 Gemini ({m}) ishga tushdi ({mode.upper()})...")
-                res = client.models.generate_content(model=m, contents=prompt)
-                if res and res.text:
-                    return clean_json_response(res.text)
-            except Exception as e:
-                print(f"⚠️ Gemini ({m}) xatoligi: {e}")
-                time.sleep(1)
+        try:
+            client = genai.Client(api_key=gemini_key)
+            models_to_try = [
+                "gemini-3.8-flash",
+                "gemini-2.5-flash",
+                "gemini-2.0-flash",
+            ]
+            for model_name in models_to_try:
+                try:
+                    print(f"🧠 Gemini ({model_name}) ishga tushdi ({mode.upper()})...")
+                    result = client.models.generate_content(
+                        model=model_name,
+                        contents=prompt,
+                    )
+                    text = getattr(result, "text", None)
+                    if text:
+                        return clean_json_response(text)
+                    raise ValueError("Gemini returned an empty response")
+                except Exception as exc:
+                    message = f"Gemini {model_name}: {exc}"
+                    provider_errors.append(message)
+                    print(f"⚠️ {message}")
+                    time.sleep(1)
+        except Exception as exc:
+            message = f"Gemini initialization: {exc}"
+            provider_errors.append(message)
+            print(f"⚠️ {message}")
+    else:
+        print("⚠️ GEMINI_API_KEY mavjud emas, Gemini o'tkazib yuborildi")
 
-    # 2. Groq (To'g'rilangan manzili va bepul yuqori tezlik)
-    groq_key = os.environ.get("GROQ_API_KEY")
+    # 2. Groq. Plain URL is intentional; do not use Markdown-link syntax here.
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
     if groq_key:
         try:
             print(f"🧠 Groq ishga tushdi ({mode.upper()})...")
-            url = "[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)"
-            headers = {
-                "Authorization": f"Bearer {groq_key.strip()}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": prompt}],
-                "response_format": {"type": "json_object"}
-            }
-            r = requests.post(url, headers=headers, json=payload, timeout=60)
-            if r.status_code == 200:
-                data = r.json()
-                return json.loads(data["choices"][0]["message"]["content"])
-            else:
-                print(f"⚠️ Groq xatoligi: {r.status_code} - {r.text}")
-        except Exception as e:
-            print(f"⚠️ Groq ulanish xatoligi: {e}")
+            return request_compatible_provider(
+                "https://api.groq.com/openai/v1/chat/completions",
+                groq_key,
+                "llama-3.3-70b-versatile",
+                prompt,
+                timeout=90,
+            )
+        except Exception as exc:
+            message = f"Groq: {exc}"
+            provider_errors.append(message)
+            print(f"⚠️ {message}")
+    else:
+        print("⚠️ GROQ_API_KEY mavjud emas, Groq o'tkazib yuborildi")
 
-    # 3. DeepSeek
-    deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
+    # 3. DeepSeek fallback.
+    deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
     if deepseek_key:
         try:
             print(f"🧠 DeepSeek ishga tushdi ({mode.upper()})...")
-            url = "[https://api.deepseek.com/v1/chat/completions](https://api.deepseek.com/v1/chat/completions)"
-            headers = {
-                "Authorization": f"Bearer {deepseek_key.strip()}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "model": "deepseek-chat",
-                "messages": [{"role": "user", "content": prompt}],
-                "response_format": {"type": "json_object"}
-            }
-            r = requests.post(url, headers=headers, json=payload, timeout=90)
-            if r.status_code == 200:
-                data = r.json()
-                return json.loads(data["choices"][0]["message"]["content"])
-            else:
-                print(f"⚠️ DeepSeek xatoligi: {r.status_code} - {r.text}")
-        except Exception as e:
-            print(f"⚠️ DeepSeek ulanish xatoligi: {e}")
+            return request_compatible_provider(
+                "https://api.deepseek.com/chat/completions",
+                deepseek_key,
+                "deepseek-chat",
+                prompt,
+                timeout=90,
+            )
+        except Exception as exc:
+            message = f"DeepSeek: {exc}"
+            provider_errors.append(message)
+            print(f"⚠️ {message}")
+    else:
+        print("⚠️ DEEPSEEK_API_KEY mavjud emas, DeepSeek o'tkazib yuborildi")
 
-    raise RuntimeError("Birorta ham AI provayderi javob bermadi!")
+    details = " | ".join(provider_errors[-5:])
+    raise RuntimeError(
+        "Birorta ham AI provayderi javob bermadi. "
+        f"Tafsilot: {details}"
+    )
