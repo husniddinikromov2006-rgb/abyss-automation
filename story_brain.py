@@ -95,25 +95,21 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
 def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", episode_num=1):
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
 
-    # 1. GEMINI (gemini-3.8-flash, 3 marta qayta urinish mexanizmi bilan)
+    # 1. Gemini (Barqaror modellar)
     gemini_key = os.environ.get("GEMINI_API_KEY")
     if gemini_key:
-        try:
-            client = genai.Client(api_key=gemini_key.strip())
-            for attempt in range(1, 4):
-                try:
-                    print(f"🧠 Gemini ishga tushdi (Urinish {attempt}/3)...")
-                    res = client.models.generate_content(model="gemini-3.8-flash", contents=prompt)
-                    if res and res.text:
-                        return clean_json_response(res.text)
-                except Exception as ge:
-                    print(f"⚠️ Gemini urinish {attempt} kutilmoqda: {ge}")
-                    if attempt < 3:
-                        time.sleep(3 * attempt)
-        except Exception as e:
-            print(f"⚠️ Gemini ishga tushirishda xato: {e}")
+        client = genai.Client(api_key=gemini_key.strip())
+        for model_name in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+            try:
+                print(f"🧠 Gemini ({model_name}) ishga tushdi ({mode.upper()})...")
+                res = client.models.generate_content(model=model_name, contents=prompt)
+                if res and res.text:
+                    return clean_json_response(res.text)
+            except Exception as e:
+                print(f"⚠️ Gemini ({model_name}) xatoligi: {e}")
+                time.sleep(2)
 
-    # 2. GROQ (100% BEPUL va o'ta tezkor)
+    # 2. Groq (Toza URL)
     groq_key = os.environ.get("GROQ_API_KEY")
     if groq_key:
         groq_models = ["llama-3.1-8b-instant", "llama3-70b-8192"]
@@ -134,8 +130,6 @@ def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", epis
                 if r.status_code == 200:
                     data = r.json()
                     return json.loads(data["choices"][0]["message"]["content"])
-                else:
-                    print(f"⚠️ Groq ({g_model}) javob kodi: {r.status_code}")
             except Exception as e:
                 print(f"⚠️ Groq ({g_model}) xatoligi: {e}")
 
@@ -158,4 +152,4 @@ def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", epis
     except Exception as pe:
         print(f"⚠️ Zaxira AI xatoligi: {pe}")
 
-    raise RuntimeError("Mavjud bepul AI tizimlaridan javob olib bo'lmadi!")
+    raise RuntimeError("Birorta ham AI tizimidan javob olib bo'lmadi!")
