@@ -36,7 +36,6 @@ from googleapiclient.http import MediaFileUpload
 
 from story_brain import get_unique_story
 
-# 1. Absolute Path sozlamalari
 BASE_DIR = Path(__file__).resolve().parent
 HISTORY_FILE = BASE_DIR / "history.json"
 OUT_DIR = BASE_DIR / "media_workspace"
@@ -125,46 +124,56 @@ def analyze_channel_performance(youtube, history):
 
         if winning_title:
             history["best_theme"] = f"Audience engagement theme: {winning_title}"
-            print(f"📊 KANAL TAHLILI: Eng muvaffaqiyatli mavzu -> {winning_title} (Ball: {best_score})")
+            print(f"📊 KANAL TAHLILI: Eng muvaffaqiyatli mavzu -> {winning_title}")
 
     except Exception as e:
         print(f"⚠️ Kanal tahlili ogohlantirishi: {e}")
 
     return history
 
-def create_fallback_image(out_path, width, height):
-    """AI rasm kelmasa yoki xatolik bo'lsa, qorong'u okean tasvirini yasovchi zaxira"""
+def download_ai_image(prompt, out_path, width, height):
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    img = PIL.Image.new("RGB", (width, height), (3, 8, 18))
-    draw = ImageDraw.Draw(img)
-    # Tasvirga chuqurlik gradiyent va effekt berish
-    for y in range(0, height, 15):
-        alpha = int(25 * (y / height))
-        draw.line([(0, y), (width, y)], fill=(10 + alpha, 20 + alpha, 40 + alpha), width=15)
-    img.save(str(out_path), "JPEG")
-    return True
+    
+    clean_p = prompt.replace("9:16", "").replace("16:9", "").strip()
+    encoded = urllib.parse.quote(clean_p)
+    seed = random.randint(100, 999999)
 
-def download_ai_image(prompt, out_path, width, height):
-    encoded = urllib.parse.quote(prompt)
-    seed = random.randint(1000, 999999)
-    url_flux = f"[https://image.pollinations.ai/prompt/](https://image.pollinations.ai/prompt/){encoded}?width={width}&height={height}&seed={seed}&model=flux&nologo=true"
-    url_turbo = f"[https://image.pollinations.ai/prompt/](https://image.pollinations.ai/prompt/){encoded}?width={width}&height={height}&seed={seed}&model=turbo&nologo=true"
+    image_sources = [
+        f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&seed={seed}&model=flux&nologo=true",
+        f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&seed={seed}&model=turbo&nologo=true",
+        f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&seed={seed}&nologo=true",
+        f"https://picsum.photos/{width}/{height}"
+    ]
 
-    for url in [url_flux, url_turbo]:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+
+    for url in image_sources:
         for _ in range(2):
             try:
-                r = requests.get(url, timeout=30)
-                if r.status_code == 200 and len(r.content) > 10000:
+                r = requests.get(url, headers=headers, timeout=25)
+                if r.status_code == 200 and len(r.content) > 15000:
                     with open(str(out_path), "wb") as f:
                         f.write(r.content)
+                    with PIL.Image.open(str(out_path)) as test_img:
+                        test_img.verify()
                     return True
             except Exception:
-                time.sleep(1.5)
-    
-    # Agar yuklanmasa darhol zaxira kadr yaratiladi
-    print(f"⚠️ Rasm yuklanmadi, zaxira kadr yaratilmoqda: {out_path.name}")
-    return create_fallback_image(out_path, width, height)
+                time.sleep(1)
+
+    # Gradient zaxira
+    img = PIL.Image.new("RGB", (width, height), (5, 12, 28))
+    draw = ImageDraw.Draw(img)
+    for y in range(0, height, 10):
+        c = int(40 * (y / height))
+        draw.line([(0, y), (width, y)], fill=(8 + c, 18 + c, 38 + c), width=10)
+    for _ in range(30):
+        rx, ry = random.randint(0, width), random.randint(0, height)
+        draw.ellipse([rx, ry, rx+4, ry+4], fill=(120, 200, 255))
+    img.save(str(out_path), "JPEG")
+    return True
 
 def make_horror_soundscape(duration):
     sample_rate = 44100
@@ -195,15 +204,15 @@ def create_cinematic_clip(image_path, duration, target_w, target_h):
         clip = clip.crop(x1=0, y1=int((img_h - new_h) / 2), x2=img_w, y2=int((img_h + new_h) / 2))
 
     clip = clip.resize((target_w, target_h))
-    zoomed = clip.resize(lambda t: 1.0 + 0.07 * (t / duration))
+    zoomed = clip.resize(lambda t: 1.0 + 0.08 * (t / duration))
     return zoomed.set_duration(duration)
 
 def create_subtitle_clips(scenes, target_w, target_h, is_horizontal=False):
     sub_clips = []
     temp_imgs = []
-    y_pos = int(target_h * 0.85) if is_horizontal else int(target_h * 0.75)
-    font_size = int(target_w * 0.035) if is_horizontal else int(target_w * 0.052)
-    max_line_len = 45 if is_horizontal else 22
+    y_pos = int(target_h * 0.82) if is_horizontal else int(target_h * 0.72)
+    font_size = int(target_w * 0.04) if is_horizontal else int(target_w * 0.065)
+    max_line_len = 38 if is_horizontal else 18
 
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
@@ -233,7 +242,7 @@ def create_subtitle_clips(scenes, target_w, target_h, is_horizontal=False):
             lines.append(" ".join(cur_l))
         display_text = "\n".join(lines[:2])
 
-        for ox, oy in [(-3,-3), (3,-3), (-3,3), (3,3), (-3,0), (3,0), (0,-3), (0,3)]:
+        for ox, oy in [(-4,-4), (4,-4), (-4,4), (4,4), (-4,0), (4,0), (0,-4), (0,4)]:
             draw.text((target_w // 2 + ox, y_pos + oy), display_text, font=font, fill=(0, 0, 0, 255), anchor="mm", align="center")
         draw.text((target_w // 2, y_pos), display_text, font=font, fill=(255, 235, 59, 255), anchor="mm", align="center")
 
@@ -263,7 +272,7 @@ def render_dynamic_movie(scenes, voice_file, output_file, total_duration, target
         for i, sc in enumerate(scenes):
             img_path = OUT_DIR / f"frame_{i}.jpg"
             temp_files.append(img_path)
-            print(f"🎬 Kadr tayyorlanmoqda ({i+1}/{len(scenes)})...")
+            print(f"🎬 Kadr chizilmoqda va yuklanmoqda ({i+1}/{len(scenes)})...")
             download_ai_image(sc["prompt"], img_path, target_w, target_h)
             clip = create_cinematic_clip(img_path, sc["duration"], target_w, target_h)
             clips.append(clip)
@@ -312,15 +321,12 @@ def main():
     youtube = get_youtube_service()
     history = load_history()
 
-    # 1. Kanal tahlili
     history = analyze_channel_performance(youtube, history)
 
-    # 2. Rejim parametrlari
     is_horizontal = args.mode in ["long_3min", "series_4min"]
     target_w, target_h = (1920, 1080) if is_horizontal else (1080, 1920)
     current_episode = history.get("series_episode", 1)
 
-    # 3. Syujetni olish
     story = get_unique_story(
         winning_theme=history.get("best_theme", "deep sea military disaster"),
         past_titles=history.get("past_titles", []),
@@ -341,17 +347,8 @@ def main():
     hook = story.get("hook", "")
     scenes = story.get("scenes", [])
 
-    # Scenes uchun himoya
     if not isinstance(scenes, list) or len(scenes) == 0:
-        raise RuntimeError("AI javobida scenes yo'q yoki scenes bo'sh!")
-
-    valid_scenes = []
-    for sc in scenes:
-        if isinstance(sc, dict):
-            sc.setdefault("text", "The abyss remains unredacted.")
-            sc.setdefault("prompt", "16:9 photorealistic dark deep ocean military submarine horror scene")
-            valid_scenes.append(sc)
-    scenes = valid_scenes
+        raise RuntimeError("AI javobida scenes topilmadi!")
 
     print(f"\n⚡ YARATILAYOTGAN FORMAT: {args.mode.upper()}")
     print(f"🎬 Video nomi: {title}")
@@ -383,7 +380,7 @@ def main():
     media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
     res = youtube.videos().insert(part="snippet,status", body=body, media_body=media).execute()
     vid = res["id"]
-    print(f"🚀 VIDEO MUVAFFAQIYATLI YUKLANDI: [https://youtu.be/](https://youtu.be/){vid}")
+    print(f"🚀 VIDEO MUVAFFAQIYATLI YUKLANDI: https://youtu.be/{vid}")
 
     history["uploaded_videos"].append(vid)
     history["past_titles"].append(title)
