@@ -1,8 +1,8 @@
 import os
 import json
+import time
 import requests
 from google import genai
-
 
 def clean_json_response(raw_text):
     text = raw_text.strip()
@@ -13,7 +13,6 @@ def clean_json_response(raw_text):
     if text.endswith("```"):
         text = text[:-3]
     return json.loads(text.strip())
-
 
 def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
     past_titles_str = "\n- ".join(past_titles[-15:]) if past_titles else "None yet"
@@ -94,52 +93,30 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
             "}"
         )
 
-
 def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", episode_num=1):
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
 
-    # Gemini models currently supported by the API account. The old 2.5/2.0/1.5
-    # IDs returned 404 in the failed workflow run.
+    # 1. Gemini (Zaxira modellari bilan birma-bir sinash)
     gemini_key = os.environ.get("GEMINI_API_KEY")
     if gemini_key:
-        for model_name in ["gemini-3.8-flash"]:
+        client = genai.Client(api_key=gemini_key.strip())
+        models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        for m in models_to_try:
             try:
-                print(f"🧠 Gemini ({model_name}) ishga tushdi ({mode.upper()})...")
-                client = genai.Client(api_key=gemini_key.strip())
-                res = client.models.generate_content(model=model_name, contents=prompt)
-                if not getattr(res, "text", None):
-                    raise ValueError("Gemini bo'sh javob qaytardi")
-                return clean_json_response(res.text)
+                print(f"🧠 Gemini ({m}) ishga tushdi ({mode.upper()})...")
+                res = client.models.generate_content(model=m, contents=prompt)
+                if res and res.text:
+                    return clean_json_response(res.text)
             except Exception as e:
-                print(f"⚠️ Gemini ({model_name}) xatoligi: {e}")
+                print(f"⚠️ Gemini ({m}) xatoligi: {e}")
+                time.sleep(1)
 
-    deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
-    if deepseek_key:
-        try:
-            print(f"🧠 DeepSeek ishga tushdi ({mode.upper()})...")
-            url = "https://api.deepseek.com/v1/chat/completions"
-            headers = {
-                "Authorization": f"Bearer {deepseek_key.strip()}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "model": "deepseek-chat",
-                "messages": [{"role": "user", "content": prompt}],
-                "response_format": {"type": "json_object"}
-            }
-            r = requests.post(url, headers=headers, json=payload, timeout=90)
-            r.raise_for_status()
-            data = r.json()
-            content = data["choices"][0]["message"]["content"]
-            return json.loads(content)
-        except Exception as e:
-            print(f"⚠️ DeepSeek xatoligi: {e}")
-
+    # 2. Groq (To'g'rilangan manzili va bepul yuqori tezlik)
     groq_key = os.environ.get("GROQ_API_KEY")
     if groq_key:
         try:
             print(f"🧠 Groq ishga tushdi ({mode.upper()})...")
-            url = "https://api.groq.com/openai/v1/chat/completions"
+            url = "[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)"
             headers = {
                 "Authorization": f"Bearer {groq_key.strip()}",
                 "Content-Type": "application/json"
@@ -150,11 +127,36 @@ def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", epis
                 "response_format": {"type": "json_object"}
             }
             r = requests.post(url, headers=headers, json=payload, timeout=60)
-            r.raise_for_status()
-            data = r.json()
-            content = data["choices"][0]["message"]["content"]
-            return json.loads(content)
+            if r.status_code == 200:
+                data = r.json()
+                return json.loads(data["choices"][0]["message"]["content"])
+            else:
+                print(f"⚠️ Groq xatoligi: {r.status_code} - {r.text}")
         except Exception as e:
-            print(f"⚠️ Groq xatoligi: {e}")
+            print(f"⚠️ Groq ulanish xatoligi: {e}")
+
+    # 3. DeepSeek
+    deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
+    if deepseek_key:
+        try:
+            print(f"🧠 DeepSeek ishga tushdi ({mode.upper()})...")
+            url = "[https://api.deepseek.com/v1/chat/completions](https://api.deepseek.com/v1/chat/completions)"
+            headers = {
+                "Authorization": f"Bearer {deepseek_key.strip()}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "deepseek-chat",
+                "messages": [{"role": "user", "content": prompt}],
+                "response_format": {"type": "json_object"}
+            }
+            r = requests.post(url, headers=headers, json=payload, timeout=90)
+            if r.status_code == 200:
+                data = r.json()
+                return json.loads(data["choices"][0]["message"]["content"])
+            else:
+                print(f"⚠️ DeepSeek xatoligi: {r.status_code} - {r.text}")
+        except Exception as e:
+            print(f"⚠️ DeepSeek ulanish xatoligi: {e}")
 
     raise RuntimeError("Birorta ham AI provayderi javob bermadi!")
