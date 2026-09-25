@@ -95,28 +95,32 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
 def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", episode_num=1):
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
 
-    # 1. Gemini (Barqaror modellar)
+    # 1. GEMINI (Google talab qilgan yagona to'g'ri model: gemini-3.8-flash)
     gemini_key = os.environ.get("GEMINI_API_KEY")
     if gemini_key:
-        client = genai.Client(api_key=gemini_key.strip())
-        for model_name in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
-            try:
-                print(f"🧠 Gemini ({model_name}) ishga tushdi ({mode.upper()})...")
-                res = client.models.generate_content(model=model_name, contents=prompt)
-                if res and res.text:
-                    return clean_json_response(res.text)
-            except Exception as e:
-                print(f"⚠️ Gemini ({model_name}) xatoligi: {e}")
-                time.sleep(2)
+        try:
+            client = genai.Client(api_key=gemini_key.strip())
+            for attempt in range(1, 4):
+                try:
+                    print(f"🧠 Gemini (gemini-3.8-flash) urinish {attempt}/3...")
+                    res = client.models.generate_content(model="gemini-3.8-flash", contents=prompt)
+                    if res and res.text:
+                        return clean_json_response(res.text)
+                except Exception as ge:
+                    print(f"⚠️ Gemini urinish {attempt} kutilmoqda: {ge}")
+                    if attempt < 3:
+                        time.sleep(4 * attempt)
+        except Exception as e:
+            print(f"⚠️ Gemini xatoligi: {e}")
 
-    # 2. Groq (Toza URL)
+    # 2. GROQ (Toza URL string, markdown belgilarsiz)
     groq_key = os.environ.get("GROQ_API_KEY")
     if groq_key:
+        groq_url = "[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)"
         groq_models = ["llama-3.1-8b-instant", "llama3-70b-8192"]
         for g_model in groq_models:
             try:
-                print(f"🧠 Groq ({g_model}) ishga tushdi ({mode.upper()})...")
-                url = "[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)"
+                print(f"🧠 Groq ({g_model}) ishga tushdi...")
                 headers = {
                     "Authorization": f"Bearer {groq_key.strip()}",
                     "Content-Type": "application/json"
@@ -126,30 +130,31 @@ def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", epis
                     "messages": [{"role": "user", "content": prompt}],
                     "response_format": {"type": "json_object"}
                 }
-                r = requests.post(url, headers=headers, json=payload, timeout=45)
+                r = requests.post(groq_url, headers=headers, json=payload, timeout=40)
                 if r.status_code == 200:
                     data = r.json()
                     return json.loads(data["choices"][0]["message"]["content"])
+                else:
+                    print(f"⚠️ Groq ({g_model}) status: {r.status_code}")
             except Exception as e:
                 print(f"⚠️ Groq ({g_model}) xatoligi: {e}")
 
-    # 3. ZAXIRA (Mutlaqo bepul va kalitsiz Pollinations AI)
-    print(f"🧠 Zaxira AI provayderi ishga tushdi ({mode.upper()})...")
+    # 3. ZAXIRA (Pollinations Text API - toza URL)
+    print(f"🧠 Zaxira AI ishga tushdi...")
     try:
         poll_url = "[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)"
-        poll_payload = {
+        payload = {
             "model": "openai",
             "messages": [
-                {"role": "system", "content": "You are a professional documentary script JSON generator. Output only valid raw JSON without markdown formatting."},
+                {"role": "system", "content": "You are a JSON generator. Return only raw valid JSON."},
                 {"role": "user", "content": prompt}
             ],
             "response_format": {"type": "json_object"}
         }
-        pr = requests.post(poll_url, json=poll_payload, timeout=60)
+        pr = requests.post(poll_url, json=payload, timeout=60)
         if pr.status_code == 200:
-            p_data = pr.json()
-            return json.loads(p_data["choices"][0]["message"]["content"])
+            return json.loads(pr.json()["choices"][0]["message"]["content"])
     except Exception as pe:
         print(f"⚠️ Zaxira AI xatoligi: {pe}")
 
-    raise RuntimeError("Birorta ham AI tizimidan javob olib bo'lmadi!")
+    raise RuntimeError("Birorta ham AI javob bermadi!")
