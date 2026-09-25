@@ -4,36 +4,15 @@ import time
 import requests
 from google import genai
 
-
 def clean_json_response(raw_text):
-    """Parse JSON returned by an AI provider, including fenced responses."""
-    if not isinstance(raw_text, str) or not raw_text.strip():
-        raise ValueError("AI provider returned an empty response")
-
     text = raw_text.strip()
-
-    # Remove Markdown code fences if a provider ignores the prompt.
-    if text.startswith("```"):
-        first_newline = text.find("\n")
-        if first_newline != -1:
-            text = text[first_newline + 1:]
-        else:
-            text = text[3:]
+    if text.startswith("```json"):
+        text = text[7:]
+    elif text.startswith("```"):
+        text = text[3:]
     if text.endswith("```"):
         text = text[:-3]
-
-    text = text.strip()
-
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        # Some models add text around the JSON. Recover the outermost object.
-        start = text.find("{")
-        end = text.rfind("}")
-        if start == -1 or end <= start:
-            raise
-        return json.loads(text[start:end + 1])
-
+    return json.loads(text.strip())
 
 def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
     past_titles_str = "\n- ".join(past_titles[-15:]) if past_titles else "None yet"
@@ -41,67 +20,66 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
 
     if mode == "series_4min":
         return (
-            f"You are a top-tier Netflix/HBO investigative horror director creating an episodic deep-sea military series.\n"
-            f"Write EPISODE {episode_num} of an ongoing serialized dark ocean expedition documentary (strictly 4 minutes spoken pace, ~520 words).\n"
-            f"High-engagement channel context: '{winning_theme}'.\n"
-            "STRICT RULES:\n"
-            "1. NO CLICHE OPENINGS. Start with sudden high-stakes military telemetry, radio distress, or classified expedition log.\n"
-            f"2. FORBIDDEN RECENT TITLES:\n- {past_titles_str}\n"
-            f"3. FORBIDDEN OPENING HOOKS:\n- {past_hooks_str}\n"
-            f"4. The title MUST include 'Episode {episode_num}: [Compelling Mystery Title]'.\n"
-            "5. The ending MUST be a terrifying cliffhanger setting up the next episode with an intense unresolved mystery.\n"
-            "6. Split into EXACTLY 48 chronological scenes (5 seconds per scene).\n"
-            "Return ONLY raw valid JSON (no markdown, no backticks):\n"
+            f"You are a top-tier documentary filmmaker directing an episodic deep-sea military thriller.\n"
+            f"Write EPISODE {episode_num} of an ongoing series (strictly 4 minutes spoken pace, ~520 words).\n"
+            f"Context: '{winning_theme}'.\n"
+            "RULES:\n"
+            "1. NO CLICHES. Start with unexpected military telemetry or radio distress.\n"
+            f"2. FORBIDDEN TITLES:\n- {past_titles_str}\n"
+            f"3. FORBIDDEN HOOKS:\n- {past_hooks_str}\n"
+            f"4. Title MUST include 'Episode {episode_num}: [Mystery Title]'.\n"
+            "5. End with an unresolved chilling cliffhanger.\n"
+            "6. Provide EXACTLY 48 scenes.\n"
+            "Return ONLY raw valid JSON:\n"
             "{\n"
             f'  "title": "ABYSS ARCHIVES - Episode {episode_num}: Title Under 70 Chars",\n'
-            '  "hook": "first chilling spoken sentence",\n'
-            '  "script": "Full spoken narrative script (~520 words)",\n'
+            '  "hook": "first spoken sentence",\n'
+            '  "script": "Full narration script (~520 words)",\n'
             '  "scenes": [\n'
-            '     {"text": "spoken narration sentence", "prompt": "16:9 photorealistic 8k dark cinematic deep ocean expedition horror scene, Unreal Engine 5, hyper-detailed"}\n'
+            '     {"text": "spoken line", "prompt": "16:9 photorealistic 8k dark cinematic deep ocean expedition horror scene, Unreal Engine 5"}\n'
             "  ]\n"
             "}"
         )
 
     elif mode == "long_3min":
         return (
-            "You are an elite Hollywood mystery-thriller director. Write an intense 3-minute complete standalone horizontal military naval documentary (~400 words).\n"
+            "You are an elite documentary director. Write an intense 3-minute standalone horizontal military naval mystery (~400 words).\n"
             f"Context: '{winning_theme}'.\n"
-            "STRICT RULES:\n"
+            "RULES:\n"
             "1. NO CLICHE OPENINGS.\n"
-            f"2. FORBIDDEN RECENT TITLES:\n- {past_titles_str}\n"
-            f"3. FORBIDDEN OPENING HOOKS:\n- {past_hooks_str}\n"
-            "4. Divide into EXACTLY 36 short chronological scenes (5 seconds per scene).\n"
+            f"2. FORBIDDEN TITLES:\n- {past_titles_str}\n"
+            f"3. FORBIDDEN HOOKS:\n- {past_hooks_str}\n"
+            "4. Divide into EXACTLY 36 scenes.\n"
             "Return ONLY raw valid JSON:\n"
             "{\n"
             '  "title": "Compelling horizontal documentary title (under 70 chars)",\n'
-            '  "hook": "first intense spoken hook sentence",\n'
-            '  "script": "Full narrative script (~400 words)",\n'
+            '  "hook": "first intense spoken sentence",\n'
+            '  "script": "Full spoken narrative script (~400 words)",\n'
             '  "scenes": [\n'
-            '     {"text": "spoken sentence", "prompt": "16:9 photorealistic 8k dark cinematic deep ocean naval disaster scene, Unreal Engine 5"}\n'
+            '     {"text": "spoken line", "prompt": "16:9 photorealistic 8k dark cinematic deep ocean naval disaster scene, Unreal Engine 5"}\n'
             "  ]\n"
             "}"
         )
 
     elif mode == "post":
         return (
-            "You are managing a viral mystery & naval horror YouTube channel community tab.\n"
-            "Create an intriguing, engaging Community Post question/poll update that hooks the audience about a declassified deep ocean recovery operation.\n"
+            "Create an intriguing Community Post update for a deep ocean mystery YouTube channel.\n"
             "Return ONLY raw valid JSON:\n"
             "{\n"
             '  "title": "Community Post Update",\n'
-            '  "text": "Intriguing post text with declassified report vibes, ending with an open question for subscribers (around 60-80 words).",\n'
-            '  "image_prompt": "16:9 cinematic classified black and white polaroid recovery photograph of sunken naval equipment in dark waters, mysterious atmosphere, 8k"\n'
+            '  "text": "Intriguing declassified expedition report update ending with a question (~60-80 words).",\n'
+            '  "image_prompt": "16:9 cinematic classified black and white polaroid photograph of underwater expedition in dark ocean, 8k"\n'
             "}"
         )
 
     else:
         return (
-            "You are an elite horror director. Write an intense US naval abyss horror story (50 seconds spoken pace).\n"
+            "Write an intense US naval abyss horror story (50 seconds spoken pace, ~120 words).\n"
             f"Context: '{winning_theme}'.\n"
-            "STRICT RULES:\n"
-            "1. NO CLICHE OPENINGS.\n"
-            f"2. FORBIDDEN RECENT TITLES:\n- {past_titles_str}\n"
-            f"3. FORBIDDEN OPENING HOOKS:\n- {past_hooks_str}\n"
+            "RULES:\n"
+            "1. NO CLICHES.\n"
+            f"2. FORBIDDEN TITLES:\n- {past_titles_str}\n"
+            f"3. FORBIDDEN HOOKS:\n- {past_hooks_str}\n"
             "4. Divide into EXACTLY 12 scenes.\n"
             "Return ONLY raw valid JSON:\n"
             "{\n"
@@ -114,111 +92,70 @@ def build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num=1):
             "}"
         )
 
-
-def request_compatible_provider(url, api_key, model, prompt, timeout=90):
-    """Call an OpenAI-compatible API and return the provider's JSON object."""
-    response = requests.post(
-        url,
-        headers={
-            "Authorization": f"Bearer {api_key.strip()}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.8,
-            "response_format": {"type": "json_object"},
-        },
-        timeout=timeout,
-    )
-
-    if not response.ok:
-        raise RuntimeError(
-            f"HTTP {response.status_code}: {response.text[:500]}"
-        )
-
-    data = response.json()
-    content = data["choices"][0]["message"]["content"]
-    return content if isinstance(content, dict) else clean_json_response(content)
-
-
 def get_unique_story(winning_theme, past_titles, past_hooks, mode="shorts", episode_num=1):
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
-    provider_errors = []
 
-    # 1. Gemini. The first model is the model recommended by the failed run.
-    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    # 1. GEMINI (gemini-3.8-flash, 3 marta qayta urinish mexanizmi bilan)
+    gemini_key = os.environ.get("GEMINI_API_KEY")
     if gemini_key:
         try:
-            client = genai.Client(api_key=gemini_key)
-            models_to_try = [
-                "gemini-3.8-flash",
-                "gemini-2.5-flash",
-                "gemini-2.0-flash",
-            ]
-            for model_name in models_to_try:
+            client = genai.Client(api_key=gemini_key.strip())
+            for attempt in range(1, 4):
                 try:
-                    print(f"🧠 Gemini ({model_name}) ishga tushdi ({mode.upper()})...")
-                    result = client.models.generate_content(
-                        model=model_name,
-                        contents=prompt,
-                    )
-                    text = getattr(result, "text", None)
-                    if text:
-                        return clean_json_response(text)
-                    raise ValueError("Gemini returned an empty response")
-                except Exception as exc:
-                    message = f"Gemini {model_name}: {exc}"
-                    provider_errors.append(message)
-                    print(f"⚠️ {message}")
-                    time.sleep(1)
-        except Exception as exc:
-            message = f"Gemini initialization: {exc}"
-            provider_errors.append(message)
-            print(f"⚠️ {message}")
-    else:
-        print("⚠️ GEMINI_API_KEY mavjud emas, Gemini o'tkazib yuborildi")
+                    print(f"🧠 Gemini ishga tushdi (Urinish {attempt}/3)...")
+                    res = client.models.generate_content(model="gemini-3.8-flash", contents=prompt)
+                    if res and res.text:
+                        return clean_json_response(res.text)
+                except Exception as ge:
+                    print(f"⚠️ Gemini urinish {attempt} kutilmoqda: {ge}")
+                    if attempt < 3:
+                        time.sleep(3 * attempt)
+        except Exception as e:
+            print(f"⚠️ Gemini ishga tushirishda xato: {e}")
 
-    # 2. Groq. Plain URL is intentional; do not use Markdown-link syntax here.
-    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    # 2. GROQ (100% BEPUL va o'ta tezkor)
+    groq_key = os.environ.get("GROQ_API_KEY")
     if groq_key:
-        try:
-            print(f"🧠 Groq ishga tushdi ({mode.upper()})...")
-            return request_compatible_provider(
-                "https://api.groq.com/openai/v1/chat/completions",
-                groq_key,
-                "llama-3.3-70b-versatile",
-                prompt,
-                timeout=90,
-            )
-        except Exception as exc:
-            message = f"Groq: {exc}"
-            provider_errors.append(message)
-            print(f"⚠️ {message}")
-    else:
-        print("⚠️ GROQ_API_KEY mavjud emas, Groq o'tkazib yuborildi")
+        groq_models = ["llama-3.1-8b-instant", "llama3-70b-8192"]
+        for g_model in groq_models:
+            try:
+                print(f"🧠 Groq ({g_model}) ishga tushdi ({mode.upper()})...")
+                url = "[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)"
+                headers = {
+                    "Authorization": f"Bearer {groq_key.strip()}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": g_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "response_format": {"type": "json_object"}
+                }
+                r = requests.post(url, headers=headers, json=payload, timeout=45)
+                if r.status_code == 200:
+                    data = r.json()
+                    return json.loads(data["choices"][0]["message"]["content"])
+                else:
+                    print(f"⚠️ Groq ({g_model}) javob kodi: {r.status_code}")
+            except Exception as e:
+                print(f"⚠️ Groq ({g_model}) xatoligi: {e}")
 
-    # 3. DeepSeek fallback.
-    deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
-    if deepseek_key:
-        try:
-            print(f"🧠 DeepSeek ishga tushdi ({mode.upper()})...")
-            return request_compatible_provider(
-                "https://api.deepseek.com/chat/completions",
-                deepseek_key,
-                "deepseek-chat",
-                prompt,
-                timeout=90,
-            )
-        except Exception as exc:
-            message = f"DeepSeek: {exc}"
-            provider_errors.append(message)
-            print(f"⚠️ {message}")
-    else:
-        print("⚠️ DEEPSEEK_API_KEY mavjud emas, DeepSeek o'tkazib yuborildi")
+    # 3. ZAXIRA (Mutlaqo bepul va kalitsiz Pollinations AI)
+    print(f"🧠 Zaxira AI provayderi ishga tushdi ({mode.upper()})...")
+    try:
+        poll_url = "[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)"
+        poll_payload = {
+            "model": "openai",
+            "messages": [
+                {"role": "system", "content": "You are a professional documentary script JSON generator. Output only valid raw JSON without markdown formatting."},
+                {"role": "user", "content": prompt}
+            ],
+            "response_format": {"type": "json_object"}
+        }
+        pr = requests.post(poll_url, json=poll_payload, timeout=60)
+        if pr.status_code == 200:
+            p_data = pr.json()
+            return json.loads(p_data["choices"][0]["message"]["content"])
+    except Exception as pe:
+        print(f"⚠️ Zaxira AI xatoligi: {pe}")
 
-    details = " | ".join(provider_errors[-5:])
-    raise RuntimeError(
-        "Birorta ham AI provayderi javob bermadi. "
-        f"Tafsilot: {details}"
-    )
+    raise RuntimeError("Mavjud bepul AI tizimlaridan javob olib bo'lmadi!")
