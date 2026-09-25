@@ -1,6 +1,6 @@
 # ============================================================
 # STORY BRAIN
-# Gemini 3.8 + Pollinations
+# Gemini + Pollinations
 # JSON Schema + Validation + Retry + Fallback
 # ============================================================
 
@@ -8,6 +8,7 @@ import os
 import json
 import time
 import re
+import random
 import requests
 
 
@@ -19,7 +20,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
 GEMINI_MODEL = os.getenv(
     "GEMINI_MODEL",
-    "gemini-3.8-flash"
+    "gemini-2.0-flash"
 ).strip()
 
 POLLINATIONS_API_KEY = os.getenv(
@@ -37,7 +38,22 @@ POLLINATIONS_MODEL = os.getenv(
 ).strip()
 
 REQUEST_TIMEOUT = 180
-MAX_RETRIES = 3
+MAX_RETRIES = 6
+
+
+def get_retry_delay(response=None, attempt=1):
+    """Use provider retry timing when available; otherwise do exponential backoff."""
+    if response is not None:
+        retry_after = response.headers.get("Retry-After")
+        if retry_after:
+            try:
+                return max(5, int(float(retry_after)))
+            except ValueError:
+                pass
+
+    backoff = min(60, 5 * (2 ** max(0, attempt - 1)))
+    jitter = random.uniform(0, 4)
+    return backoff + jitter
 
 
 # ============================================================
@@ -95,10 +111,6 @@ def clean_json_response(raw_text):
             "AI bo'sh javob qaytardi."
         )
 
-    # --------------------------------------------
-    # Markdown code block
-    # --------------------------------------------
-
     text = re.sub(
         r"^```json\s*",
         "",
@@ -120,52 +132,31 @@ def clean_json_response(raw_text):
 
     text = text.strip()
 
-    # --------------------------------------------
-    # JSON object extraction
-    # --------------------------------------------
-
     start = text.find("{")
     end = text.rfind("}")
 
     if start == -1 or end == -1 or end <= start:
-
         raise ValueError(
             "AI javobida JSON object topilmadi."
         )
 
     text = text[start:end + 1]
 
-    # --------------------------------------------
-    # Parse
-    # --------------------------------------------
-
     try:
-
         data = json.loads(text)
-
     except json.JSONDecodeError as e:
-
         print()
         print("=" * 60)
         print("❌ JSON PARSE ERROR")
         print("=" * 60)
-
-        print(
-            f"Xato: {e}"
-        )
-
+        print(f"Xato: {e}")
         print()
         print("AI javobining boshlanishi:")
         print(text[:3000])
-
         print("=" * 60)
-
-        raise ValueError(
-            f"JSON parsing xatosi: {e}"
-        )
+        raise ValueError(f"JSON parsing xatosi: {e}")
 
     if not isinstance(data, dict):
-
         raise ValueError(
             "AI JSON object qaytarmadi."
         )
@@ -204,12 +195,7 @@ def build_prompt(
         else "None"
     )
 
-    # ========================================================
-    # SERIES 4 MIN
-    # ========================================================
-
     if mode == "series_4min":
-
         return f"""
 You are a professional cinematic documentary writer.
 
@@ -274,13 +260,7 @@ JSON:
 }}
 """
 
-
-    # ========================================================
-    # LONG 3 MIN
-    # ========================================================
-
     if mode == "long_3min":
-
         return f"""
 You are an elite cinematic documentary writer.
 
@@ -339,13 +319,7 @@ JSON:
 }}
 """
 
-
-    # ========================================================
-    # COMMUNITY POST
-    # ========================================================
-
     if mode == "post":
-
         return f"""
 Create an intriguing YouTube Community Post.
 
@@ -365,11 +339,6 @@ JSON:
   "image_prompt": "16:9 cinematic mysterious underwater expedition photograph, documentary style, ultra detailed"
 }}
 """
-
-
-    # ========================================================
-    # SHORTS
-    # ========================================================
 
     return f"""
 You are a professional YouTube Shorts documentary writer.
@@ -435,78 +404,36 @@ JSON:
 
 def get_gemini_schema(mode):
 
-    # --------------------------------------------------------
-    # POST
-    # --------------------------------------------------------
-
     if mode == "post":
-
         return {
             "type": "object",
             "properties": {
-                "title": {
-                    "type": "string"
-                },
-                "text": {
-                    "type": "string"
-                },
-                "image_prompt": {
-                    "type": "string"
-                }
+                "title": {"type": "string"},
+                "text": {"type": "string"},
+                "image_prompt": {"type": "string"}
             },
-            "required": [
-                "title",
-                "text",
-                "image_prompt"
-            ]
+            "required": ["title", "text", "image_prompt"]
         }
-
-    # --------------------------------------------------------
-    # VIDEO
-    # --------------------------------------------------------
 
     return {
         "type": "object",
         "properties": {
-
-            "title": {
-                "type": "string"
-            },
-
-            "hook": {
-                "type": "string"
-            },
-
-            "script": {
-                "type": "string"
-            },
-
+            "title": {"type": "string"},
+            "hook": {"type": "string"},
+            "script": {"type": "string"},
             "scenes": {
                 "type": "array",
                 "items": {
                     "type": "object",
                     "properties": {
-                        "text": {
-                            "type": "string"
-                        },
-                        "prompt": {
-                            "type": "string"
-                        }
+                        "text": {"type": "string"},
+                        "prompt": {"type": "string"}
                     },
-                    "required": [
-                        "text",
-                        "prompt"
-                    ]
+                    "required": ["text", "prompt"]
                 }
             }
         },
-
-        "required": [
-            "title",
-            "hook",
-            "script",
-            "scenes"
-        ]
+        "required": ["title", "hook", "script", "scenes"]
     }
 
 
@@ -517,425 +444,157 @@ def get_gemini_schema(mode):
 def validate_story(data, mode):
 
     if not isinstance(data, dict):
-
-        raise ValueError(
-            "Story dict/object emas."
-        )
-
-    # ========================================================
-    # POST
-    # ========================================================
+        raise ValueError("Story dict/object emas.")
 
     if mode == "post":
-
-        required = [
-            "title",
-            "text",
-            "image_prompt"
-        ]
-
+        required = ["title", "text", "image_prompt"]
         for field in required:
-
             if field not in data:
-
-                raise ValueError(
-                    f"Post '{field}' mavjud emas."
-                )
-
-            if not isinstance(
-                data[field],
-                str
-            ):
-
-                raise ValueError(
-                    f"Post '{field}' string emas."
-                )
-
+                raise ValueError(f"Post '{field}' mavjud emas.")
+            if not isinstance(data[field], str):
+                raise ValueError(f"Post '{field}' string emas.")
             if not data[field].strip():
-
-                raise ValueError(
-                    f"Post '{field}' bo'sh."
-                )
-
+                raise ValueError(f"Post '{field}' bo'sh.")
         return data
 
-    # ========================================================
-    # VIDEO
-    # ========================================================
-
-    required = [
-        "title",
-        "hook",
-        "script",
-        "scenes"
-    ]
-
+    required = ["title", "hook", "script", "scenes"]
     for field in required:
-
         if field not in data:
+            raise ValueError(f"Video '{field}' mavjud emas.")
 
-            raise ValueError(
-                f"Video '{field}' mavjud emas."
-            )
-
-    # --------------------------------------------------------
-    # Strings
-    # --------------------------------------------------------
-
-    for field in [
-        "title",
-        "hook",
-        "script"
-    ]:
-
-        if not isinstance(
-            data[field],
-            str
-        ):
-
-            raise ValueError(
-                f"'{field}' string emas."
-            )
-
+    for field in ["title", "hook", "script"]:
+        if not isinstance(data[field], str):
+            raise ValueError(f"'{field}' string emas.")
         if not data[field].strip():
-
-            raise ValueError(
-                f"'{field}' bo'sh."
-            )
-
-    # --------------------------------------------------------
-    # Scenes
-    # --------------------------------------------------------
+            raise ValueError(f"'{field}' bo'sh.")
 
     scenes = data["scenes"]
-
-    if not isinstance(
-        scenes,
-        list
-    ):
-
-        raise ValueError(
-            "'scenes' list emas."
-        )
+    if not isinstance(scenes, list):
+        raise ValueError("'scenes' list emas.")
 
     expected_counts = {
         "shorts": 12,
         "long_3min": 36,
         "series_4min": 48
     }
-
     expected = expected_counts.get(mode)
-
     if expected is None:
-
-        raise ValueError(
-            f"Noma'lum mode: {mode}"
-        )
-
+        raise ValueError(f"Noma'lum mode: {mode}")
     if len(scenes) != expected:
+        raise ValueError(f"{mode}: {expected} scene kerak, AI {len(scenes)} ta berdi.")
 
-        raise ValueError(
-            f"{mode}: {expected} scene kerak, "
-            f"AI {len(scenes)} ta berdi."
-        )
-
-    # --------------------------------------------------------
-    # Each scene
-    # --------------------------------------------------------
-
-    for index, scene in enumerate(
-        scenes,
-        start=1
-    ):
-
-        if not isinstance(
-            scene,
-            dict
-        ):
-
-            raise ValueError(
-                f"{index}-scene object emas."
-            )
-
+    for index, scene in enumerate(scenes, start=1):
+        if not isinstance(scene, dict):
+            raise ValueError(f"{index}-scene object emas.")
         if "text" not in scene:
-
-            raise ValueError(
-                f"{index}-scene text yo'q."
-            )
-
+            raise ValueError(f"{index}-scene text yo'q.")
         if "prompt" not in scene:
-
-            raise ValueError(
-                f"{index}-scene prompt yo'q."
-            )
-
-        if not isinstance(
-            scene["text"],
-            str
-        ):
-
-            raise ValueError(
-                f"{index}-scene text string emas."
-            )
-
-        if not isinstance(
-            scene["prompt"],
-            str
-        ):
-
-            raise ValueError(
-                f"{index}-scene prompt string emas."
-            )
-
+            raise ValueError(f"{index}-scene prompt yo'q.")
+        if not isinstance(scene["text"], str):
+            raise ValueError(f"{index}-scene text string emas.")
+        if not isinstance(scene["prompt"], str):
+            raise ValueError(f"{index}-scene prompt string emas.")
         if not scene["text"].strip():
-
-            raise ValueError(
-                f"{index}-scene text bo'sh."
-            )
-
+            raise ValueError(f"{index}-scene text bo'sh.")
         if not scene["prompt"].strip():
-
-            raise ValueError(
-                f"{index}-scene prompt bo'sh."
-            )
+            raise ValueError(f"{index}-scene prompt bo'sh.")
 
     return data
 
 
 # ============================================================
-# GEMINI 3.8
-# DIRECT REST API
+# GEMINI 2.0/2.5 direct REST API
 # ============================================================
 
-def generate_with_gemini(
-    prompt,
-    mode
-):
+def generate_with_gemini(prompt, mode):
 
     if not GEMINI_API_KEY:
-
-        print(
-            "❌ GEMINI_API_KEY mavjud emas."
-        )
-
+        print("❌ GEMINI_API_KEY mavjud emas.")
         return None
 
     print()
-    print(
-        f"🧠 Gemini {GEMINI_MODEL}"
-    )
+    print(f"🧠 Gemini {GEMINI_MODEL}")
 
     url = (
-        "https://generativelanguage.googleapis.com/"
-        "v1beta/interactions"
+        f"https://generativelanguage.googleapis.com/"
+        f"v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     )
 
-    headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": GEMINI_API_KEY
-    }
-
-    schema = get_gemini_schema(mode)
-
     payload = {
-        "model": GEMINI_MODEL,
-        "input": prompt,
-        "response_format": {
-            "type": "text",
-            "mime_type": "application/json",
-            "schema": schema
+        "contents": [
+            {
+                "parts": [{"text": prompt}]
+            }
+        ],
+        "generationConfig": {
+            "response_mime_type": "application/json"
         }
     }
 
-    for attempt in range(
-        1,
-        MAX_RETRIES + 1
-    ):
-
-        print(
-            f"   Gemini urinish "
-            f"{attempt}/{MAX_RETRIES}"
-        )
+    for attempt in range(1, MAX_RETRIES + 1):
+        print(f"   Gemini urinish {attempt}/{MAX_RETRIES}")
 
         try:
-
             response = requests.post(
                 url,
-                headers=headers,
                 json=payload,
                 timeout=REQUEST_TIMEOUT
             )
 
-            print(
-                f"   Gemini HTTP: "
-                f"{response.status_code}"
-            )
-
-            # ------------------------------------------------
-            # SUCCESS
-            # ------------------------------------------------
+            print(f"   Gemini HTTP: {response.status_code}")
 
             if response.status_code == 200:
-
                 api_data = response.json()
+                candidate = api_data.get("candidates", [{}])[0]
+                content = candidate.get("content", {})
+                parts = content.get("parts", [])
 
-                output = api_data.get(
-                    "output_text"
-                )
-
-                # Current API may expose output
-                # in steps as well.
-                if not output:
-
-                    steps = api_data.get(
-                        "steps",
-                        []
-                    )
-
-                    for step in reversed(steps):
-
-                        if (
-                            step.get("type")
-                            == "model_output"
-                        ):
-
-                            content = step.get(
-                                "content",
-                                []
-                            )
-
-                            for item in content:
-
-                                if (
-                                    item.get("type")
-                                    == "text"
-                                ):
-
-                                    output = item.get(
-                                        "text"
-                                    )
-
-                                    if output:
-                                        break
-
-                        if output:
-                            break
+                output = ""
+                for part in parts:
+                    if isinstance(part, dict) and part.get("text"):
+                        output = part.get("text")
+                        break
 
                 if not output:
+                    raise ValueError("Gemini response ichida output_text topilmadi.")
 
-                    raise ValueError(
-                        "Gemini response ichida "
-                        "output_text topilmadi."
-                    )
-
-                print(
-                    "✅ Gemini javob berdi."
-                )
-
-                # JSON parsing
-                data = clean_json_response(
-                    output
-                )
-
-                # Full validation
-                validate_story(
-                    data,
-                    mode
-                )
-
-                print(
-                    "✅ Gemini JSON + validation OK."
-                )
-
+                print("✅ Gemini javob berdi.")
+                data = clean_json_response(output)
+                validate_story(data, mode)
+                print("✅ Gemini JSON + validation OK.")
                 return data
 
-            # ------------------------------------------------
-            # RETRY ERRORS
-            # ------------------------------------------------
-
-            if response.status_code in [
-                408,
-                429,
-                500,
-                502,
-                503,
-                504
-            ]:
-
-                print(
-                    "⚠️ Gemini vaqtinchalik xato:"
-                )
-
-                print(
-                    response.text[:1500]
-                )
+            if response.status_code in [408, 429, 500, 502, 503, 504]:
+                print("⚠️ Gemini vaqtinchalik xato:")
+                print(response.text[:1500])
 
                 if attempt < MAX_RETRIES:
-
-                    wait = attempt * 5
-
-                    print(
-                        f"   {wait}s kutamiz..."
-                    )
-
+                    wait = get_retry_delay(response, attempt)
+                    print(f"   {wait:.1f}s kutamiz...")
                     time.sleep(wait)
-
                     continue
 
-            # ------------------------------------------------
-            # PERMANENT ERROR
-            # ------------------------------------------------
-
             print()
-            print(
-                "❌ GEMINI API ERROR"
-            )
-
-            print(
-                response.text[:3000]
-            )
-
+            print("❌ GEMINI API ERROR")
+            print(response.text[:3000])
             return None
 
         except requests.exceptions.Timeout:
-
-            print(
-                "⚠️ Gemini timeout."
-            )
-
+            print("⚠️ Gemini timeout.")
             if attempt < MAX_RETRIES:
-
-                time.sleep(
-                    attempt * 5
-                )
+                time.sleep(get_retry_delay(None, attempt))
 
         except requests.exceptions.ConnectionError as e:
-
-            print(
-                "⚠️ Gemini connection error:"
-            )
-
+            print("⚠️ Gemini connection error:")
             print(e)
-
             if attempt < MAX_RETRIES:
-
-                time.sleep(
-                    attempt * 5
-                )
+                time.sleep(get_retry_delay(None, attempt))
 
         except Exception as e:
-
-            print(
-                "⚠️ Gemini processing error:"
-            )
-
+            print("⚠️ Gemini processing error:")
             print(e)
-
             if attempt < MAX_RETRIES:
-
-                time.sleep(
-                    attempt * 4
-                )
+                time.sleep(get_retry_delay(None, attempt))
 
     return None
 
@@ -944,69 +603,40 @@ def generate_with_gemini(
 # POLLINATIONS
 # ============================================================
 
-def generate_with_pollinations(
-    prompt,
-    mode
-):
+def generate_with_pollinations(prompt, mode):
 
     if not POLLINATIONS_API_KEY:
-
         print()
-        print(
-            "❌ POLLINATIONS_API_KEY mavjud emas."
-        )
-
+        print("❌ POLLINATIONS_API_KEY mavjud emas.")
         return None
 
     print()
-    print(
-        f"🌸 Pollinations {POLLINATIONS_MODEL}"
-    )
+    print(f"🌸 Pollinations {POLLINATIONS_MODEL}")
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization":
-            f"Bearer {POLLINATIONS_API_KEY}"
+        "Authorization": f"Bearer {POLLINATIONS_API_KEY}"
     }
 
     payload = {
-
         "model": POLLINATIONS_MODEL,
-
         "messages": [
-
             {
                 "role": "system",
                 "content": (
-                    "You are a professional "
-                    "cinematic documentary writer. "
-                    "Return ONLY valid JSON. "
-                    "Never use Markdown."
+                    "You are a professional cinematic documentary writer. "
+                    "Return ONLY valid JSON. Never use Markdown."
                 )
             },
-
-            {
-                "role": "user",
-                "content": prompt
-            }
+            {"role": "user", "content": prompt}
         ],
-
-        # Help prevent excessive output.
         "temperature": 0.8
     }
 
-    for attempt in range(
-        1,
-        MAX_RETRIES + 1
-    ):
-
-        print(
-            f"   Pollinations urinish "
-            f"{attempt}/{MAX_RETRIES}"
-        )
+    for attempt in range(1, MAX_RETRIES + 1):
+        print(f"   Pollinations urinish {attempt}/{MAX_RETRIES}")
 
         try:
-
             response = requests.post(
                 POLLINATIONS_URL,
                 headers=headers,
@@ -1014,182 +644,64 @@ def generate_with_pollinations(
                 timeout=REQUEST_TIMEOUT
             )
 
-            print(
-                f"   Pollinations HTTP: "
-                f"{response.status_code}"
-            )
-
-            # ------------------------------------------------
-            # SUCCESS
-            # ------------------------------------------------
+            print(f"   Pollinations HTTP: {response.status_code}")
 
             if response.status_code == 200:
-
                 api_data = response.json()
-
-                choices = api_data.get(
-                    "choices",
-                    []
-                )
-
+                choices = api_data.get("choices", [])
                 if not choices:
+                    raise ValueError("Pollinations choices yo'q.")
 
-                    raise ValueError(
-                        "Pollinations choices yo'q."
-                    )
+                message = choices[0].get("message", {})
+                content = message.get("content", "")
 
-                message = choices[0].get(
-                    "message",
-                    {}
-                )
-
-                content = message.get(
-                    "content",
-                    ""
-                )
-
-                # Some OpenAI-compatible
-                # responses may return a list.
-                if isinstance(
-                    content,
-                    list
-                ):
-
+                if isinstance(content, list):
                     parts = []
-
                     for item in content:
-
-                        if isinstance(
-                            item,
-                            dict
-                        ):
-
-                            if item.get(
-                                "type"
-                            ) == "text":
-
-                                parts.append(
-                                    item.get(
-                                        "text",
-                                        ""
-                                    )
-                                )
-
+                        if isinstance(item, dict) and item.get("type") == "text":
+                            parts.append(item.get("text", ""))
                     content = "".join(parts)
 
                 if not content:
+                    raise ValueError("Pollinations content bo'sh.")
 
-                    raise ValueError(
-                        "Pollinations content bo'sh."
-                    )
-
-                print(
-                    "✅ Pollinations javob berdi."
-                )
-
-                data = clean_json_response(
-                    content
-                )
-
-                validate_story(
-                    data,
-                    mode
-                )
-
-                print(
-                    "✅ Pollinations JSON + "
-                    "validation OK."
-                )
-
+                print("✅ Pollinations javob berdi.")
+                data = clean_json_response(content)
+                validate_story(data, mode)
+                print("✅ Pollinations JSON + validation OK.")
                 return data
 
-            # ------------------------------------------------
-            # RETRY
-            # ------------------------------------------------
-
-            if response.status_code in [
-                408,
-                429,
-                500,
-                502,
-                503,
-                504
-            ]:
-
-                print(
-                    "⚠️ Pollinations vaqtinchalik xato:"
-                )
-
-                print(
-                    response.text[:1500]
-                )
+            if response.status_code in [408, 429, 500, 502, 503, 504]:
+                print("⚠️ Pollinations vaqtinchalik xato:")
+                print(response.text[:1500])
 
                 if attempt < MAX_RETRIES:
-
-                    wait = attempt * 5
-
-                    print(
-                        f"   {wait}s kutamiz..."
-                    )
-
+                    wait = get_retry_delay(response, attempt)
+                    print(f"   {wait:.1f}s kutamiz...")
                     time.sleep(wait)
-
                     continue
 
-            # ------------------------------------------------
-            # OTHER ERROR
-            # ------------------------------------------------
-
             print()
-            print(
-                "❌ POLLINATIONS API ERROR"
-            )
-
-            print(
-                response.text[:3000]
-            )
-
+            print("❌ POLLINATIONS API ERROR")
+            print(response.text[:3000])
             return None
 
         except requests.exceptions.Timeout:
-
-            print(
-                "⚠️ Pollinations timeout."
-            )
-
+            print("⚠️ Pollinations timeout.")
             if attempt < MAX_RETRIES:
-
-                time.sleep(
-                    attempt * 5
-                )
+                time.sleep(get_retry_delay(None, attempt))
 
         except requests.exceptions.ConnectionError as e:
-
-            print(
-                "⚠️ Pollinations connection error:"
-            )
-
+            print("⚠️ Pollinations connection error:")
             print(e)
-
             if attempt < MAX_RETRIES:
-
-                time.sleep(
-                    attempt * 5
-                )
+                time.sleep(get_retry_delay(None, attempt))
 
         except Exception as e:
-
-            print(
-                "⚠️ Pollinations processing error:"
-            )
-
+            print("⚠️ Pollinations processing error:")
             print(e)
-
             if attempt < MAX_RETRIES:
-
-                time.sleep(
-                    attempt * 4
-                )
+                time.sleep(get_retry_delay(None, attempt))
 
     return None
 
@@ -1213,24 +725,11 @@ def get_unique_story(
     print("=" * 70)
     print("🚀 AI STORY GENERATOR")
     print("=" * 70)
-
-    print(
-        f"Mode: {mode}"
-    )
-
-    print(
-        f"Theme: {winning_theme}"
-    )
-
-    print(
-        f"Episode: {episode_num}"
-    )
+    print(f"Mode: {mode}")
+    print(f"Theme: {winning_theme}")
+    print(f"Episode: {episode_num}")
 
     debug_config()
-
-    # ========================================================
-    # BUILD PROMPT
-    # ========================================================
 
     prompt = build_prompt(
         mode=mode,
@@ -1240,55 +739,27 @@ def get_unique_story(
         episode_num=episode_num
     )
 
-    # ========================================================
-    # GEMINI
-    # ========================================================
-
     print()
     print("=" * 70)
     print("1️⃣ GEMINI")
     print("=" * 70)
 
-    result = generate_with_gemini(
-        prompt=prompt,
-        mode=mode
-    )
-
+    result = generate_with_gemini(prompt=prompt, mode=mode)
     if result is not None:
-
         print()
-        print(
-            "🎉 GEMINI STORY READY."
-        )
-
+        print("🎉 GEMINI STORY READY.")
         return result
-
-    # ========================================================
-    # POLLINATIONS FALLBACK
-    # ========================================================
 
     print()
     print("=" * 70)
     print("2️⃣ POLLINATIONS FALLBACK")
     print("=" * 70)
 
-    result = generate_with_pollinations(
-        prompt=prompt,
-        mode=mode
-    )
-
+    result = generate_with_pollinations(prompt=prompt, mode=mode)
     if result is not None:
-
         print()
-        print(
-            "🎉 POLLINATIONS STORY READY."
-        )
-
+        print("🎉 POLLINATIONS STORY READY.")
         return result
-
-    # ========================================================
-    # FINAL ERROR
-    # ========================================================
 
     raise RuntimeError(
         "\n"
@@ -1306,12 +777,9 @@ def get_unique_story(
         "\n"
         f"Mode: {mode}\n"
         f"Gemini model: {GEMINI_MODEL}\n"
-        f"Gemini key: "
-        f"{'YES' if GEMINI_API_KEY else 'NO'}\n"
-        f"Pollinations model: "
-        f"{POLLINATIONS_MODEL}\n"
-        f"Pollinations key: "
-        f"{'YES' if POLLINATIONS_API_KEY else 'NO'}\n"
+        f"Gemini key: {'YES' if GEMINI_API_KEY else 'NO'}\n"
+        f"Pollinations model: {POLLINATIONS_MODEL}\n"
+        f"Pollinations key: {'YES' if POLLINATIONS_API_KEY else 'NO'}\n"
     )
 
 
@@ -1332,7 +800,6 @@ if __name__ == "__main__":
     )
 
     try:
-
         result = get_unique_story(
             winning_theme=test_theme,
             past_titles=[],
@@ -1346,21 +813,11 @@ if __name__ == "__main__":
         print("🎉 STORY GENERATED SUCCESSFULLY")
         print("=" * 70)
 
-        print(
-            json.dumps(
-                result,
-                indent=2,
-                ensure_ascii=False
-            )
-        )
+        print(json.dumps(result, indent=2, ensure_ascii=False))
 
     except Exception as e:
-
         print()
         print("=" * 70)
         print("❌ FINAL ERROR")
         print("=" * 70)
-
-        print(
-            str(e)
-        )
+        print(str(e))
