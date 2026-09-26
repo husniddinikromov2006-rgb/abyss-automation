@@ -7,19 +7,10 @@ import requests
 
 REQUEST_TIMEOUT = 30
 
-def clean_url(url_str):
-    if not url_str:
-        return ""
-    url_str = str(url_str).strip()
-    match = re.search(r'https?://[^\s\)\]\"\']+', url_str)
-    if match:
-        return match.group(0)
-    return url_str
-
 def extract_valid_json(text):
     start = text.find("{")
     if start == -1:
-        raise ValueError("Metinde { bulunamadı")
+        raise ValueError("Matnda { belgisi topilmadi")
 
     depth = 0
     in_string = False
@@ -46,11 +37,11 @@ def extract_valid_json(text):
     if end > start:
         return text[start:end+1]
 
-    raise ValueError("Eksiksiz JSON bloğu bulunamadı")
+    raise ValueError("To'liq JSON bloki topilmadi")
 
 def clean_json_response(raw_text):
     if not raw_text:
-        raise ValueError("AI boş yanıt döndürdü.")
+        raise ValueError("AI bo'sh javob qaytardi.")
 
     text = str(raw_text).strip()
     text = re.sub(r"^```json\s*", "", text, flags=re.IGNORECASE)
@@ -61,11 +52,11 @@ def clean_json_response(raw_text):
     data = json.loads(json_candidate)
 
     if not isinstance(data, dict):
-        raise ValueError("Yanıt geçerli bir JSON nesnesi değil.")
+        raise ValueError("Javob yaroqli JSON obyekti emas.")
     return data
 
 # ============================================================
-# 40 YILLIK TÜKENMEZ MATRİS HAVUZU
+# MATRITSA MA'LUMOTLAR BAZASI
 # ============================================================
 
 LOCATIONS = [
@@ -188,7 +179,7 @@ CRITICAL RULES (ABSOLUTE ZERO REPETITION):
 5. Exact spoken script: ~{target_words} words.
 6. EXACTLY {target_scenes} scenes with spoken lines and vivid prompts.
 
-JSON SCHEMA:
+JSON SCHEMA (Return valid JSON only):
 {{
   "title": "Shocking High-CTR Title #Shorts",
   "hook": "Unforgettable first sentence",
@@ -200,7 +191,6 @@ JSON SCHEMA:
 """
 
 def generate_offline_backup_story(mode):
-    """Internetdagi AI javob bermaganda ishlatiladigan xatosiz zaxira generatori"""
     loc = random.choice(LOCATIONS)
     vessel = random.choice(VESSELS)
     creature = random.choice(CREATURES)
@@ -245,14 +235,14 @@ def generate_offline_backup_story(mode):
 
 def validate_story(data, mode):
     if not isinstance(data, dict):
-        raise ValueError("Sonuç geçerli bir JSON değil.")
+        raise ValueError("Natija JSON emas.")
 
     title_val = data.get("title") or data.get("video_title") or f"THE ABYSS ANOMALY #{random.randint(1000, 99999)} #Shorts"
     data["title"] = str(title_val)
 
     script_val = data.get("script") or data.get("narration") or data.get("story")
     if not script_val:
-        raise ValueError("Script metni bulunamadı.")
+        raise ValueError("Script topilmadi.")
     data["script"] = str(script_val)
 
     hook_val = data.get("hook") or data["script"].split(".")[0]
@@ -283,26 +273,25 @@ def validate_story(data, mode):
     return data
 
 # ============================================================
-# İNTERNETTEN AÇIK VE ÜCRETSİZ AI MOTORLARI
+# OCHIQ VA BEPUL AI MOTORLARI (TO'G'RILANGAN)
 # ============================================================
 
 def fetch_internet_ai(prompt):
-    engines = [
-        ("[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)", "openai"),
-        ("[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)", "mistral"),
-        ("[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)", "qwen")
-    ]
-
-    for url, model in engines:
+    models = ["openai", "mistral", "qwen"]
+    
+    for model in models:
         try:
+            url = "[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)"
             payload = {
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": "You are a professional mystery scriptwriter. Return only pure JSON."},
+                    {"role": "system", "content": "You are a professional mystery scriptwriter. Return only pure raw JSON matching schema."},
                     {"role": "user", "content": prompt}
-                ]
+                ],
+                "response_format": {"type": "json_object"}
             }
-            r = requests.post(clean_url(url), json=payload, timeout=15)
+            headers = {"Content-Type": "application/json"}
+            r = requests.post(url, json=payload, headers=headers, timeout=20)
             if r.status_code == 200:
                 res_data = r.json()
                 if "choices" in res_data and len(res_data["choices"]) > 0:
@@ -312,15 +301,17 @@ def fetch_internet_ai(prompt):
         except Exception:
             continue
 
+    # Zaxira oddiy GET so'rovi
     try:
-        get_url = clean_url(f"[https://text.pollinations.ai/](https://text.pollinations.ai/){requests.utils.quote(prompt)}")
-        res = requests.get(get_url, timeout=15)
+        clean_prompt = urllib.parse.quote(prompt[:800])
+        get_url = f"[https://text.pollinations.ai/](https://text.pollinations.ai/){clean_prompt}?json=true"
+        res = requests.get(get_url, timeout=20)
         if res.status_code == 200 and res.text.strip():
             return clean_json_response(res.text)
     except Exception:
         pass
 
-    raise RuntimeError("Online AI manbalari band.")
+    raise RuntimeError("Online AI manbalari javob bermadi.")
 
 def get_unique_story(mode, winning_theme, past_titles=None, past_hooks=None, episode_num=1):
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
