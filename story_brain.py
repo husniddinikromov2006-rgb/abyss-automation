@@ -141,7 +141,6 @@ def build_prompt(mode, winning_theme, past_titles=None, past_hooks=None, episode
     past_titles_str = "\n- ".join(past_titles[-30:]) if past_titles else "None"
     past_hooks_str = "\n- ".join(past_hooks[-30:]) if past_hooks else "None"
 
-    # DASHBOARD BUYRUQLARINI O'QISH
     user_cfg_path = os.path.join(os.path.dirname(__file__), "user_instructions.json")
     user_guide = ""
     if os.path.exists(user_cfg_path):
@@ -270,4 +269,23 @@ def fetch_internet_ai(prompt):
             continue
 
     try:
-      get_url = clean_url(f"https://text.pollinations.ai/{requests.utils.quote(prompt)}")
+        get_url = clean_url(f"[https://text.pollinations.ai/](https://text.pollinations.ai/){requests.utils.quote(prompt)}")
+        res = requests.get(get_url, timeout=REQUEST_TIMEOUT)
+        if res.status_code == 200 and res.text.strip():
+            return clean_json_response(res.text)
+    except Exception:
+        pass
+
+    raise RuntimeError("Barcha bepul AI manbalari band. Qayta urinib ko'ring.")
+
+def get_unique_story(mode, winning_theme, past_titles=None, past_hooks=None, episode_num=1):
+    prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
+    for attempt in range(3):
+        try:
+            raw_data = fetch_internet_ai(prompt)
+            validated = validate_story(raw_data, mode)
+            return validated
+        except Exception as e:
+            time.sleep(2)
+            continue
+    raise RuntimeError("Ssenariy generatsiya qilib bo'lmadi.")
