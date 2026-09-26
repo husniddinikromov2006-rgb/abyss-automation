@@ -5,7 +5,7 @@ import re
 import random
 import requests
 
-REQUEST_TIMEOUT = 60
+REQUEST_TIMEOUT = 30
 
 def clean_url(url_str):
     if not url_str:
@@ -65,7 +65,7 @@ def clean_json_response(raw_text):
     return data
 
 # ============================================================
-# 40 YILLIK TÜKENMEZ MATRİS HAVUZU (Milyonlarca Kombinasyon)
+# 40 YILLIK TÜKENMEZ MATRİS HAVUZU
 # ============================================================
 
 LOCATIONS = [
@@ -199,6 +199,50 @@ JSON SCHEMA:
 }}
 """
 
+def generate_offline_backup_story(mode):
+    """Internetdagi AI javob bermaganda ishlatiladigan xatosiz zaxira generatori"""
+    loc = random.choice(LOCATIONS)
+    vessel = random.choice(VESSELS)
+    creature = random.choice(CREATURES)
+    evt = random.choice(EVENTS)
+    climax = random.choice(CLIMAXES)
+    target_count = 12 if mode == "shorts" else (36 if mode == "long_3min" else 48)
+    aspect = "16:9" if mode in ["long_3min", "series_4min", "post"] else "9:16"
+
+    code_id = random.randint(100, 999)
+    title = f"CLASSIFIED NAVAL LOG: The {vessel.split()[-1]} Incident #{code_id} #Shorts"
+    hook = f"Military telemetry confirmed that {vessel} was dragged into {loc}."
+    
+    sentences = [
+        f"Official naval records strictly classified the final mission of {vessel}.",
+        f"Deep within {loc}, automated hull hydrophones detected an impossible frequency.",
+        f"Without warning, {evt}.",
+        "Engine telemetry dropped to zero as the submarine drifted into the trench depths.",
+        "External quartz floodlights penetrated the pitch-black void of the abyss.",
+        f"The crew witnessed {creature} moving silently beneath the titanium hull.",
+        "A biological shockwave echoed through the pressure hull, triggering emergency protocols.",
+        "Deep ocean ballast tanks failed to respond as hydraulic pressure vanished.",
+        "Sonar screens were blinded by massive biological interference patterns.",
+        climax,
+        "No distress buoy ever surfaced, and rescue teams encountered absolute silence.",
+        "Decades later, oceanographers still refuse to broadcast the retrieved black box audio."
+    ]
+
+    scenes = []
+    for i in range(target_count):
+        txt = sentences[i % len(sentences)]
+        scenes.append({
+            "text": txt,
+            "prompt": f"{aspect} photorealistic 8k terrifying deep sea mystery, {creature}, {vessel}, volumetric diver floodlights, dark oceanic abyss, cinematic, Unreal Engine 5"
+        })
+
+    return {
+        "title": title,
+        "hook": hook,
+        "script": " ".join(sentences),
+        "scenes": scenes
+    }
+
 def validate_story(data, mode):
     if not isinstance(data, dict):
         raise ValueError("Sonuç geçerli bir JSON değil.")
@@ -258,7 +302,7 @@ def fetch_internet_ai(prompt):
                     {"role": "user", "content": prompt}
                 ]
             }
-            r = requests.post(clean_url(url), json=payload, timeout=REQUEST_TIMEOUT)
+            r = requests.post(clean_url(url), json=payload, timeout=15)
             if r.status_code == 200:
                 res_data = r.json()
                 if "choices" in res_data and len(res_data["choices"]) > 0:
@@ -270,22 +314,24 @@ def fetch_internet_ai(prompt):
 
     try:
         get_url = clean_url(f"[https://text.pollinations.ai/](https://text.pollinations.ai/){requests.utils.quote(prompt)}")
-        res = requests.get(get_url, timeout=REQUEST_TIMEOUT)
+        res = requests.get(get_url, timeout=15)
         if res.status_code == 200 and res.text.strip():
             return clean_json_response(res.text)
     except Exception:
         pass
 
-    raise RuntimeError("Barcha bepul AI manbalari band. Qayta urinib ko'ring.")
+    raise RuntimeError("Online AI manbalari band.")
 
 def get_unique_story(mode, winning_theme, past_titles=None, past_hooks=None, episode_num=1):
     prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
-    for attempt in range(3):
+    for attempt in range(2):
         try:
             raw_data = fetch_internet_ai(prompt)
             validated = validate_story(raw_data, mode)
             return validated
-        except Exception as e:
-            time.sleep(2)
+        except Exception:
+            time.sleep(1)
             continue
-    raise RuntimeError("Ssenariy generatsiya qilib bo'lmadi.")
+            
+    print("⚠️ Online AI band, avtomatik zaxira generatori ishga tushirildi...")
+    return generate_offline_backup_story(mode)
