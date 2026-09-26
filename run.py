@@ -7,6 +7,7 @@ import asyncio
 import argparse
 import urllib.parse
 import shutil
+import ssl
 from pathlib import Path
 import requests
 
@@ -33,6 +34,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from googleapiclient.errors import HttpError
 
 from story_brain import get_unique_story
 
@@ -313,6 +315,48 @@ def post_community_update(youtube, story):
     text = story.get("text", "Declassified expedition log update...")
     print(f"\n📢 COMMUNITY POST YARATILDI:\n{text}")
 
+def upload_video_to_youtube(youtube, video_path, title, description, tags):
+    """Xatoliklarga chidamli, bo'lib-bo'lib yuklovchi funksiya"""
+    body = {
+        "snippet": {"title": title, "description": description, "tags": tags, "categoryId": "28"},
+        "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False},
+    }
+    
+    # 5MB bo'laklarga bo'lib yuklash (uzilishlarni oldini oladi)
+    media = MediaFileUpload(
+        str(video_path),
+        chunksize=5 * 1024 * 1024,
+        resumable=True,
+        mimetype="video/mp4"
+    )
+    
+    insert_request = youtube.videos().insert(
+        part="snippet,status",
+        body=body,
+        media_body=media
+    )
+
+    response = None
+    max_retries = 5
+    retry = 0
+
+    print("📤 YouTube ga yuklash boshlandi...")
+    while response is None:
+        try:
+            status, response = insert_request.next_chunk()
+            if status:
+                print(f"⏳ Yuklanish jarayoni: {int(status.progress() * 100)}%")
+        except (ssl.SSLEOFError, Exception) as e:
+            retry += 1
+            print(f"⚠️ Tarmoq uzilishi yuz berdi: {e}")
+            if retry > max_retries:
+                raise RuntimeError("5 martadan ortiq urinishda ham ulanib bo'lmadi.")
+            wait_time = retry * 5
+            print(f"🔄 {wait_time} soniyadan so'ng qayta uriniladi ({retry}/{max_retries})...")
+            time.sleep(wait_time)
+
+    return response["id"]
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["shorts", "long_3min", "series_4min", "post"], default="shorts")
@@ -373,13 +417,8 @@ def main():
     desc = f"{script}\n\n#DeepSeaHorror #NavalHorror #AbyssSecrets #Declassified #OceanMystery #Documentary"
     tags = ["Deep sea horror", "US Navy horror", "submarine disaster", "ocean mystery", "abyss documentary", "classified logs"]
 
-    body = {
-        "snippet": {"title": title, "description": desc, "tags": tags, "categoryId": "28"},
-        "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False},
-    }
-    media = MediaFileUpload(str(video_path), chunksize=-1, resumable=True, mimetype="video/mp4")
-    res = youtube.videos().insert(part="snippet,status", body=body, media_body=media).execute()
-    vid = res["id"]
+    # Xavfsiz yuklash funksiyasini chaqiramiz
+    vid = upload_video_to_youtube(youtube, video_path, title, desc, tags)
     print(f"🚀 VIDEO MUVAFFAQIYATLI YUKLANDI: https://youtu.be/{vid}")
 
     history["uploaded_videos"].append(vid)
