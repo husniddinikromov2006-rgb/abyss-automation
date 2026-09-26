@@ -270,4 +270,4 @@ def fetch_internet_ai(prompt):
             continue
 
     try:
-        get_url = clean_url(f"[https://text.pollinations.ai/](https://text.pollinations.ai/){requests.
+      get_url = clean_url(f"https://text.pollinations.ai/{requests.utils.quote(prompt)}")
