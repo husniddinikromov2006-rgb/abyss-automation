@@ -1,6 +1,6 @@
 # ============================================================
 # 🌍 UNREAL PLACES ENGINE — 100% PRODUCTION RUNNER
-# ULTRA 4K + DYNAMIC AUDIO LINKER + SAFE RENDERING
+# ULTRA 4K + SAFE AUDIO LINKER + SAFE RENDERING
 # ============================================================
 
 import os
@@ -539,7 +539,7 @@ def get_unique_place():
     return {"country": p["country"], "flag": p["flag"], "query": p["query"]}
 
 # ============================================================
-# 🎵 DINAMIK AUDIO IDENTIFIKATORI (MUTLAQO XATOSIZ)
+# 🎵 DINAMIK AUDIO IDENTIFIKATORI
 # ============================================================
 
 def is_valid_audio(file_path):
@@ -555,21 +555,18 @@ def is_valid_audio(file_path):
         return False
 
 def get_audio_file():
-    """Foydalanuvchi yuklagan fayllarni birinchi bo'lib tanlab oladi"""
-    # 1. Siz yuklagan 'issueoie_Places...' trekini qidirish
+    """Foydalanuvchi yuklagan trekni tanlaydi"""
     target_names = glob.glob("**/issueoie*.mp3", recursive=True)
     if target_names and is_valid_audio(target_names[0]):
         print(f"[AUDIO TANLANDI]: Asosiy 'Sail' treki topildi -> {target_names[0]}")
         return os.path.abspath(target_names[0])
 
-    # 2. Repodagi istalgan haqiqiy mp3 faylni topish
     all_mp3s = glob.glob("**/*.mp3", recursive=True)
     for mp3 in all_mp3s:
         if is_valid_audio(mp3):
-            print(f"[AUDIO TANLANDI]: Repodagi yaroqli audio topildi -> {mp3}")
+            print(f"[AUDIO TANLANDI]: Repodagi audio topildi -> {mp3}")
             return os.path.abspath(mp3)
 
-    # 3. Agar hech narsa topilmasa, toza audio yaratish (hech qachon xato bermaydi)
     fallback = os.path.join(MUSIC_DIR, "clean_beat.mp3")
     print("[AUDIO]: Repodan audio topilmadi, toza sintetik ritm yaratilmoqda...")
     subprocess.run([
@@ -611,7 +608,6 @@ def build_crisp_synced_short(short_index, spots, audio_path):
     output_file = os.path.join(OUTPUT_DIR, f"Short_{short_index}_UltraCrisp.mp4")
     print(f"\n--- Shorts #{short_index} avtomatik montaj qilinmoqda ---")
 
-    # 1. Boshlang'ich Hook (2.2s - 'SAIL' zarbasigacha to'g'ri keladi)
     hook_video = f"hook_{short_index}.mp4"
     hook_text_filter = (
         "drawtext=text='PLACES ON EARTH THAT\\nDON’T FEEL REAL 🤯':"
@@ -636,7 +632,6 @@ def build_crisp_synced_short(short_index, spots, audio_path):
             if not raw_clip:
                 continue
 
-            # Qora ekranda davlat kartochkasi (0.8s)
             card_video = f"card_{short_index}_{i}.mp4"
             country_display = f"📍 {spot['country']} {spot['flag']}"
             card_font_size = 48 if len(spot["country"]) > 13 else 62
@@ -654,7 +649,6 @@ def build_crisp_synced_short(short_index, spots, audio_path):
             ], check=True)
             temp_files.append(card_video)
 
-            # VIDEO KADR USTIDA CHIROYLIK MATN (Glassmorphism overlay) + ULTRA 4K FILTR
             proc_clip = f"proc_{short_index}_{i}.mp4"
             overlay_font_size = 42 if len(spot["country"]) > 13 else 50
             
@@ -679,14 +673,12 @@ def build_crisp_synced_short(short_index, spots, audio_path):
             f.write(f"file '{os.path.abspath(card_video)}'\n")
             f.write(f"file '{os.path.abspath(proc_clip)}'\n")
 
-    # Kadrlar oqimini birlashtirish
     temp_merged = f"merged_{short_index}.mp4"
     subprocess.run([
         "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_list,
         "-c:v", "libx264", "-pix_fmt", "yuv420p", temp_merged
     ], check=True)
 
-    # OVOZNI ISHONCHLI BIRIKTIRISH (Xatosiz AAC 320k)
     subprocess.run([
         "ffmpeg", "-y",
         "-i", temp_merged,
@@ -707,14 +699,14 @@ def build_crisp_synced_short(short_index, spots, audio_path):
     print(f"[TAYYOR ULTRA HD]: {output_file}")
 
 # ============================================================
-# 🚀 MAIN RUN
+# 🚀 MAIN RUN (Kuniga 2 ta eng sifatli Shorts)
 # ============================================================
 
 if __name__ == "__main__":
     audio = get_audio_file()
 
-    for s_idx in range(1, 5):
+    for s_idx in range(1, 3):
         selected_spots = [get_unique_place() for _ in range(5)]
         build_crisp_synced_short(s_idx, selected_spots, audio)
 
-    print("\n=== BARCHA NOYOB LOKATSIYALAR ASOSIDA 4 TA ULTRA SHORTS TAYYORLANDI ===")
+    print("\n=== KUNLIK VIDEOLAR YAKUNLANDI ===")
