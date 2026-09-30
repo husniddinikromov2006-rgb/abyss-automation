@@ -702,21 +702,55 @@ def generate_video_location():
 # 🎵 AUDIO VA ULTRA HD MONTAJ MEXANIZMI
 # ============================================================
 
+YOUTUBE_AUDIO_URL = "https://youtu.be/vwfUyt3YSjQ?t=64"
+
+def has_audio_stream(path):
+    """FFmpeg audio stream mavjudligini tekshirish"""
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v", "error",
+            "-select_streams", "a:0",
+            "-show_entries", "stream=codec_type",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            path,
+        ],
+        capture_output=True,
+        text=True
+    )
+    return result.returncode == 0 and result.stdout.strip() == "audio"
+
 def get_audio_file():
-    """Foydalanuvchi yuklagan mp3 musiqasini 100% topish"""
-    tracks = glob.glob("**/*.mp3", recursive=True)
-    if tracks:
-        print(f"[AUDIO TANLANDI]: {tracks[0]}")
-        return os.path.abspath(tracks[0])
+    """Audio faylini tekshirish va YouTube'dan yuklash"""
+    candidates = []
+    for ext in ["*.mp3", "*.wav", "*.m4a", "*.aac"]:
+        candidates.extend(glob.glob(os.path.join("**", ext), recursive=True))
+    
+    for candidate in candidates:
+        if os.path.isfile(candidate) and has_audio_stream(candidate):
+            print(f"[AUDIO TANLANDI]: {candidate}")
+            return os.path.abspath(candidate)
 
     fallback = os.path.join(MUSIC_DIR, "sail_beat.mp3")
-    print("[AUDIO]: Repodan musiqa topilmadi, zaxira trek yuklanmoqda...")
-    url = "https://cdn.pixabay.com/download/audio/2022/11/06/audio_c937ecfa86.mp3?filename=trap-future-bass-royalty-free-music-125633.mp3"
-    r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
-    with open(fallback, "wb") as f:
-        f.write(r.content)
-    return fallback
+    print("[AUDIO]: Valid audio topilmadi, YouTube'dan yuklanmoqda...")
+    
+    try:
+        subprocess.run([
+            "yt-dlp",
+            "-x",
+            "--audio-format", "mp3",
+            "--audio-quality", "0",
+            "-o", os.path.join(MUSIC_DIR, "sail_beat.%(ext)s"),
+            YOUTUBE_AUDIO_URL,
+        ], check=True)
+    except Exception as e:
+        print(f"[XATO]: {e}")
 
+    if os.path.exists(fallback) and has_audio_stream(fallback):
+        print(f"[AUDIO TAYYORLANDI]: {fallback}")
+        return os.path.abspath(fallback)
+
+    raise RuntimeError(f"Audio yuklanmadi: {YOUTUBE_AUDIO_URL}")
 
 def download_crisp_4k_clip(query, idx):
     file_path = os.path.join(VIDEOS_DIR, f"clip_{idx}.mp4")
