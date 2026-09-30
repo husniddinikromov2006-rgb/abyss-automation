@@ -802,10 +802,10 @@ def build_crisp_synced_short(short_index, spots, audio_path):
         "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=2.2:r=30",
         "-vf", hook_text_filter,
         "-c:v", "libx264", "-pix_fmt", "yuv420p", hook_video
-    ], check=True)
+      ], check=True)
 
     temp_files = [hook_video]
-     country_display = f"📌 {spot['country']} {spot['flag']}"
+    concat_list = f"concat_{short_index}.txt"
 
     with open(concat_list, "w") as f:
         f.write(f"file '{os.path.abspath(hook_video)}'\n")
@@ -819,14 +819,14 @@ def build_crisp_synced_short(short_index, spots, audio_path):
             country_display = f"📍 {spot['country']} {spot['flag']}"
 
             # Matn uzunligiga qarab ekrandan chiqib ketmaslik uchun shrift o'lchamini moslash
-              font_size = 72 if len(spot["country"]) <= 8 else 56
-          card_filter = (
-             f"drawtext=text='{country_display}':"
-              f"fontcolor=white:fontsize={font_size}:"
+            font_size = 72 if len(spot["country"]) <= 8 else 56
+            card_filter = (
+                f"drawtext=text='{country_display}':"
+                f"fontcolor=white:fontsize={font_size}:"
                 "x=(w-text_w)/2:y=(h-text_h)/2:"
-                 "box=1:boxcolor=black@0.75:boxborderw=24:"
+                "box=1:boxcolor=black@0.75:boxborderw=24:"
                 "shadowcolor=black@0.95:shadowx=5:shadowy=5"
-           )
+            )
             
             subprocess.run([
                 "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=0.8:r=30",
