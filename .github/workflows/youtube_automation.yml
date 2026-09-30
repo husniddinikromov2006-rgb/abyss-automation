@@ -38,13 +38,19 @@ jobs:
           python-version: '3.10'
           cache: 'pip'
 
-      - name: FFmpeg o'rnatish
+      - name: FFmpeg va yt-dlp o'rnatish
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          python -m pip install yt-dlp
 
       - name: Kutubxonalarni o'rnatish
         run: pip install -r requirements.txt
+
+      - name: Yaroqsiz audio faylni tozalash
+        run: |
+          rm -f music/sail_beat.mp3
 
       - name: Videolarni render qilish
         env:
