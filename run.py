@@ -8,25 +8,21 @@ import glob
 import random
 import requests
 import subprocess
-
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 VIDEOS_DIR = "videos"
 OUTPUT_DIR = "output"
 MUSIC_DIR = "music"
- YOUTUBE_AUDIO_URL = "https://youtu.be/vwfUyt3YSjQ"
- YOUTUBE_AUDIO_START = "64"
+YOUTUBE_AUDIO_URL = "https://youtu.be/vwfUyt3YSjQ"
+YOUTUBE_AUDIO_START = "64"
 
- os.makedirs(VIDEOS_DIR, exist_ok=True)
-
+os.makedirs(VIDEOS_DIR, exist_ok=True)
 os.makedirs(VIDEOS_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(MUSIC_DIR, exist_ok=True)
 
-
 # ============================================================
 # 🌎 REAL WORLD LOCATIONS & FANTASY WORLDS POOL
 # ============================================================
-
 UNREAL_PLACES_POOL = [
     # 🇨🇭 SWITZERLAND
     {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Lauterbrunnen Valley waterfalls Switzerland 4k cinematic"},
