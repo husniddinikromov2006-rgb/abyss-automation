@@ -6,32 +6,35 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-CLIENT_SECRET_RAW = os.getenv("YOUTUBE_CLIENT_SECRET")
-REFRESH_TOKEN = os.getenv("YOUTUBE_REFRESH_TOKEN")
+TOKEN_RAW = os.getenv("YOUTUBE_TOKEN_JSON")
 
 def get_authenticated_service():
-    if not CLIENT_SECRET_RAW or not REFRESH_TOKEN:
-        print("[XATO]: YOUTUBE_CLIENT_SECRET yoki YOUTUBE_REFRESH_TOKEN GitHub Secrets'da topilmadi!")
+    if not TOKEN_RAW:
+        print("[XATO]: YOUTUBE_TOKEN_JSON GitHub Secrets ichida topilmadi!")
         sys.exit(1)
 
     try:
-        client_data = json.loads(CLIENT_SECRET_RAW)
-        # Google JSON formati bo'yicha 'installed' yoki 'web' kalitini olish
-        config = client_data.get("installed", client_data.get("web", {}))
-        client_id = config.get("client_id")
-        client_secret = config.get("client_secret")
-
-        credentials = Credentials(
-            None,
-            refresh_token=REFRESH_TOKEN,
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=client_id,
-            client_secret=client_secret
-        )
+        token_data = json.loads(TOKEN_RAW)
+        
+        # Agar JSON ichida to'g'ridan-to'g'ri token parametrlari bo'lsa
+        credentials = Credentials.from_authorized_user_info(token_data)
         return build("youtube", "v3", credentials=credentials)
     except Exception as e:
-        print(f"[XATO]: Google OAuth ulanishida xatolik: {e}")
-        sys.exit(1)
+        print(f"[XATO]: Token orqali ulanishda xatolik: {e}")
+        # Agar format sal boshqacha bo'lsa, qo'shimcha parametrlar bilan urinib ko'rish
+        try:
+            installed = token_data.get("installed", token_data.get("web", token_data))
+            credentials = Credentials(
+                token=token_data.get("access_token"),
+                refresh_token=token_data.get("refresh_token"),
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=installed.get("client_id"),
+                client_secret=installed.get("client_secret")
+            )
+            return build("youtube", "v3", credentials=credentials)
+        except Exception as e2:
+            print(f"[XATO]: Qayta ulanish ham o'xshamadi: {e2}")
+            sys.exit(1)
 
 def upload_videos():
     youtube = get_authenticated_service()
@@ -44,8 +47,6 @@ def upload_videos():
     for file_path in video_files:
         file_name = os.path.basename(file_path)
         is_short = "Short" in file_name
-        
-        # Fayl nomidan sarlavha yasash
         clean_title = file_name.replace("_", " ").replace(".mp4", "")
         
         if is_short:
@@ -55,14 +56,14 @@ def upload_videos():
         else:
             title = f"{clean_title} – Ultra HD Cinematic Nature (4K)"
             tags = ["nature", "cinematic", "scenic", "relaxing", "4k", "travel", "earth"]
-            desc = "Immerse yourself in breathtaking 4K scenic landscapes and soothing atmosphere. #nature #cinematic #4k"
+            desc = "Immerse yourself in breathtaking 4K scenic landscapes. #nature #cinematic #4k"
 
         body = {
             "snippet": {
                 "title": title[:100],
                 "description": desc,
                 "tags": tags,
-                "categoryId": "19"  # Travel & Events kategoriyasi
+                "categoryId": "19"
             },
             "status": {
                 "privacyStatus": "public",
@@ -70,7 +71,7 @@ def upload_videos():
             }
         }
 
-        print(f"\nYouTube'ga yuklanmoqda: {file_name}")
+        print(f"\nYouTube'ga yuklanmoqda: {file_name}...")
         media = MediaFileUpload(file_path, chunksize=-1, resumable=True, mimetype="video/mp4")
         request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
 
@@ -78,7 +79,7 @@ def upload_videos():
         while response is None:
             status, response = request.next_chunk()
             if status:
-                print(f"Jarayon: {int(status.progress() * 100)}%")
+                print(f"Yuklanish foizi: {int(status.progress() * 100)}%")
 
         video_id = response.get("id")
         print(f"[MUVAFFAQIYAT]: Video joylandi! Havola: https://youtu.be/{video_id}")
