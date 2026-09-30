@@ -1,13 +1,15 @@
+# ============================================================
+# 🌍 UNREAL PLACES ENGINE
+# REAL WORLD + HIDDEN GEMS + AI FANTASY
+# ============================================================
+
 import os
 import glob
-import datetime
+import random
 import requests
 import subprocess
-from story_brain import get_daily_content_plan
 
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
-TARGET_MODE = os.getenv("TARGET_MODE", "").strip().lower()
-
 VIDEOS_DIR = "videos"
 OUTPUT_DIR = "output"
 MUSIC_DIR = "music"
@@ -16,140 +18,912 @@ os.makedirs(VIDEOS_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(MUSIC_DIR, exist_ok=True)
 
-def get_current_task():
-    if TARGET_MODE:
-        return TARGET_MODE
-    utc_hour = datetime.datetime.now(datetime.timezone.utc).hour
-    if utc_hour == 1:
-        return "main"
-    elif utc_hour == 6:
-        return "short1"
-    elif utc_hour == 11:
-        return "short2"
-    elif utc_hour == 15:
-        return "short3"
-    elif utc_hour == 19:
-        return "short4"
-    return "all"
 
-def download_footage(queries):
-    headers = {"Authorization": PEXELS_API_KEY} if PEXELS_API_KEY else {}
-    downloaded = []
-    print("\n--- Pexels'dan 4K kadrlar olinmoqda ---")
-    for idx, query in enumerate(queries):
-        file_path = os.path.join(VIDEOS_DIR, f"clip_{idx}.mp4")
-        if not PEXELS_API_KEY:
-            continue
-        try:
-            url = f"https://api.pexels.com/videos/search?query={query}&per_page=5&orientation=landscape"
-            r = requests.get(url, headers=headers, timeout=20).json()
-            videos = r.get("videos", [])
-            if not videos:
-                clean_term = query.split()[0] + " nature landscape 4k"
-                url_alt = f"https://api.pexels.com/videos/search?query={clean_term}&per_page=3"
-                r = requests.get(url_alt, headers=headers, timeout=20).json()
-                videos = r.get("videos", [])
+# ============================================================
+# 🌎 REAL WORLD LOCATIONS
+# ============================================================
 
-            if videos:
-                files = videos[0].get("video_files", [])
-                best = max(files, key=lambda x: (x.get("width", 0), x.get("height", 0)))
-                link = best.get("link")
-                resp = requests.get(link, stream=True, timeout=60)
-                with open(file_path, "wb") as f:
-                    for chunk in resp.iter_content(chunk_size=1024 * 1024):
-                        if chunk: f.write(chunk)
-                downloaded.append(file_path)
-                print(f"[YUKLANDI]: {query}")
-        except Exception as e:
-            print(f"[XATO]: {query}: {e}")
-    return downloaded
+UNREAL_PLACES_POOL = [
+    # ========================================================
+    # 🇨🇭 SWITZERLAND
+    # ========================================================
+    {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Lauterbrunnen Valley waterfalls Switzerland 4k cinematic"},
+    {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Grindelwald Switzerland Alps drone 4k"},
+    {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Oeschinen Lake Switzerland turquoise 4k"},
+    {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Blausee Switzerland crystal lake 4k"},
+    {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Lake Lucerne Swiss Alps 4k"},
+    {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Matterhorn Zermatt sunrise 4k"},
+    {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Aletsch Glacier Switzerland aerial 4k"},
+    {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Jungfrau Switzerland clouds 4k"},
+    {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Engelberg Switzerland mountain valley 4k"},
+    {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Lago di Saoseo Switzerland hidden lake 4k"},
+    {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Val Verzasca Switzerland emerald river 4k"},
+    {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Saxon Switzerland mountain landscape 4k"},
 
-def resolve_audio():
-    tracks = glob.glob(os.path.join(MUSIC_DIR, "*.mp3"))
+    # ========================================================
+    # 🇳🇴 NORWAY
+    # ========================================================
+    {"country": "NORWAY", "flag": "🇳🇴", "query": "Lofoten Islands Reine Norway drone 4k"},
+    {"country": "NORWAY", "flag": "🇳🇴", "query": "Geirangerfjord Norway waterfalls 4k"},
+    {"country": "NORWAY", "flag": "🇳🇴", "query": "Trolltunga Norway sunrise 4k"},
+    {"country": "NORWAY", "flag": "🇳🇴", "query": "Preikestolen Norway fjord 4k"},
+    {"country": "NORWAY", "flag": "🇳🇴", "query": "Kjerag Norway mountains 4k"},
+    {"country": "NORWAY", "flag": "🇳🇴", "query": "Senja Norway dramatic coastline 4k"},
+    {"country": "NORWAY", "flag": "🇳🇴", "query": "Loen Norway mountains clouds 4k"},
+    {"country": "NORWAY", "flag": "🇳🇴", "query": "Flam Norway fjord valley 4k"},
+    {"country": "NORWAY", "flag": "🇳🇴", "query": "Vesteralen Norway islands 4k"},
+    {"country": "NORWAY", "flag": "🇳🇴", "query": "Northern Norway northern lights mountains 4k"},
+    {"country": "NORWAY", "flag": "🇳🇴", "query": "Hardangerfjord Norway spring waterfalls 4k"},
+    {"country": "NORWAY", "flag": "🇳🇴", "query": "Jotunheimen National Park Norway 4k"},
+
+    # ========================================================
+    # 🇮🇸 ICELAND
+    # ========================================================
+    {"country": "ICELAND", "flag": "🇮🇸", "query": "Reynisfjara black sand beach Iceland 4k"},
+    {"country": "ICELAND", "flag": "🇮🇸", "query": "Skogafoss Iceland waterfall 4k"},
+    {"country": "ICELAND", "flag": "🇮🇸", "query": "Seljalandsfoss Iceland waterfall 4k"},
+    {"country": "ICELAND", "flag": "🇮🇸", "query": "Kirkjufell Iceland northern lights 4k"},
+    {"country": "ICELAND", "flag": "🇮🇸", "query": "Jokulsarlon glacier lagoon 4k"},
+    {"country": "ICELAND", "flag": "🇮🇸", "query": "Diamond Beach Iceland ice 4k"},
+    {"country": "ICELAND", "flag": "🇮🇸", "query": "Iceland Highlands volcanic landscape 4k"},
+    {"country": "ICELAND", "flag": "🇮🇸", "query": "Iceland blue lagoon aerial 4k"},
+    {"country": "ICELAND", "flag": "🇮🇸", "query": "Svartifoss Iceland basalt waterfall 4k"},
+    {"country": "ICELAND", "flag": "🇮🇸", "query": "Fjaðrárgljúfur canyon Iceland 4k"},
+    {"country": "ICELAND", "flag": "🇮🇸", "query": "Vestrahorn Iceland mountain beach 4k"},
+    {"country": "ICELAND", "flag": "🇮🇸", "query": "Landmannalaugar Iceland colorful mountains 4k"},
+
+    # ========================================================
+    # 🇯🇵 JAPAN
+    # ========================================================
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "Arashiyama bamboo forest Kyoto 4k"},
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "Mount Fuji cherry blossoms 4k"},
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "Kawaguchiko Mount Fuji sunrise 4k"},
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "Shirakawa Go village snow 4k"},
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "Nachi waterfall Japan 4k"},
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "Yakushima ancient forest 4k"},
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "Hokkaido lavender fields 4k"},
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "Japanese autumn forest mountain 4k"},
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "Kamikochi Japan mountain valley 4k"},
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "Oirase stream forest Japan 4k"},
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "Hitachi seaside park flowers 4k"},
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "Nakasendo Japan mountain village 4k"},
+
+    # ========================================================
+    # 🇨🇳 CHINA
+    # ========================================================
+    {"country": "CHINA", "flag": "🇨🇳", "query": "Zhangjiajie Avatar mountains drone 4k"},
+    {"country": "CHINA", "flag": "🇨🇳", "query": "Huangshan Yellow Mountain sea clouds 4k"},
+    {"country": "CHINA", "flag": "🇨🇳", "query": "Jiuzhaigou Valley turquoise lakes 4k"},
+    {"country": "CHINA", "flag": "🇨🇳", "query": "Guilin Li River karst mountains 4k"},
+    {"country": "CHINA", "flag": "🇨🇳", "query": "Zhangye Rainbow Mountains China 4k"},
+    {"country": "CHINA", "flag": "🇨🇳", "query": "Tianzi Mountain China clouds 4k"},
+    {"country": "CHINA", "flag": "🇨🇳", "query": "Fanjingshan China clouds 4k"},
+    {"country": "CHINA", "flag": "🇨🇳", "query": "Yunnan rice terraces China 4k"},
+    {"country": "CHINA", "flag": "🇨🇳", "query": "Tibet Himalayas lake mountains 4k"},
+    {"country": "CHINA", "flag": "🇨🇳", "query": "Huanglong colorful pools China 4k"},
+    {"country": "CHINA", "flag": "🇨🇳", "query": "Three Gorges China aerial 4k"},
+    {"country": "CHINA", "flag": "🇨🇳", "query": "Wulingyuan China mist mountains 4k"},
+
+    # ========================================================
+    # 🇫🇴 FAROE ISLANDS
+    # ========================================================
+    {"country": "FAROE ISLANDS", "flag": "🇫🇴", "query": "Gasadalur waterfall Faroe Islands 4k"},
+    {"country": "FAROE ISLANDS", "flag": "🇫🇴", "query": "Drangarnir Faroe Islands cliffs 4k"},
+    {"country": "FAROE ISLANDS", "flag": "🇫🇴", "query": "Saksun Faroe Islands village 4k"},
+    {"country": "FAROE ISLANDS", "flag": "🇫🇴", "query": "Mykines Faroe Islands cliffs 4k"},
+    {"country": "FAROE ISLANDS", "flag": "🇫🇴", "query": "Kalsoy Faroe Islands mountains 4k"},
+    {"country": "FAROE ISLANDS", "flag": "🇫🇴", "query": "Faroe Islands ocean cliffs fog 4k"},
+
+    # ========================================================
+    # 🇮🇹 ITALY
+    # ========================================================
+    {"country": "ITALY", "flag": "🇮🇹", "query": "Dolomites Seceda ridge sunrise 4k"},
+    {"country": "ITALY", "flag": "🇮🇹", "query": "Tre Cime di Lavaredo 4k"},
+    {"country": "ITALY", "flag": "🇮🇹", "query": "Lake Braies Dolomites 4k"},
+    {"country": "ITALY", "flag": "🇮🇹", "query": "Lake Como mountains drone 4k"},
+    {"country": "ITALY", "flag": "🇮🇹", "query": "Amalfi Coast drone 4k"},
+    {"country": "ITALY", "flag": "🇮🇹", "query": "Cinque Terre coastline 4k"},
+    {"country": "ITALY", "flag": "🇮🇹", "query": "Tuscany hills sunrise 4k"},
+    {"country": "ITALY", "flag": "🇮🇹", "query": "Sardinia turquoise coastline 4k"},
+    {"country": "ITALY", "flag": "🇮🇹", "query": "Lake Garda Italy mountains 4k"},
+    {"country": "ITALY", "flag": "🇮🇹", "query": "Gran Paradiso Italy mountains 4k"},
+
+    # ========================================================
+    # 🇮🇩 INDONESIA
+    # ========================================================
+    {"country": "INDONESIA", "flag": "🇮🇩", "query": "Bali Tegalalang rice terraces 4k"},
+    {"country": "INDONESIA", "flag": "🇮🇩", "query": "Mount Bromo sunrise 4k"},
+    {"country": "INDONESIA", "flag": "🇮🇩", "query": "Kelingking Beach Nusa Penida 4k"},
+    {"country": "INDONESIA", "flag": "🇮🇩", "query": "Raja Ampat islands drone 4k"},
+    {"country": "INDONESIA", "flag": "🇮🇩", "query": "Komodo National Park aerial 4k"},
+    {"country": "INDONESIA", "flag": "🇮🇩", "query": "Ijen crater blue fire 4k"},
+    {"country": "INDONESIA", "flag": "🇮🇩", "query": "Sekumpul waterfall Bali 4k"},
+    {"country": "INDONESIA", "flag": "🇮🇩", "query": "Munduk Bali jungle waterfall 4k"},
+    {"country": "INDONESIA", "flag": "🇮🇩", "query": "Mount Rinjani Lombok 4k"},
+    {"country": "INDONESIA", "flag": "🇮🇩", "query": "Flores Kelimutu lakes 4k"},
+    {"country": "INDONESIA", "flag": "🇮🇩", "query": "Nusa Penida hidden beach 4k"},
+
+    # ========================================================
+    # 🇳🇿 NEW ZEALAND
+    # ========================================================
+    {"country": "NEW ZEALAND", "flag": "🇳🇿", "query": "Milford Sound New Zealand 4k"},
+    {"country": "NEW ZEALAND", "flag": "🇳🇿", "query": "Mount Cook New Zealand 4k"},
+    {"country": "NEW ZEALAND", "flag": "🇳🇿", "query": "Lake Tekapo New Zealand 4k"},
+    {"country": "NEW ZEALAND", "flag": "🇳🇿", "query": "Lake Pukaki Mount Cook 4k"},
+    {"country": "NEW ZEALAND", "flag": "🇳🇿", "query": "Roy's Peak Wanaka 4k"},
+    {"country": "NEW ZEALAND", "flag": "🇳🇿", "query": "Franz Josef Glacier 4k"},
+    {"country": "NEW ZEALAND", "flag": "🇳🇿", "query": "Fiordland National Park 4k"},
+    {"country": "NEW ZEALAND", "flag": "🇳🇿", "query": "Abel Tasman turquoise coast 4k"},
+    {"country": "NEW ZEALAND", "flag": "🇳🇿", "query": "Milford Sound waterfalls mist 4k"},
+    {"country": "NEW ZEALAND", "flag": "🇳🇿", "query": "Aoraki Mount Cook sunrise 4k"},
+
+    # ========================================================
+    # 🇻🇳 VIETNAM
+    # ========================================================
+    {"country": "VIETNAM", "flag": "🇻🇳", "query": "Ha Long Bay Vietnam 4k"},
+    {"country": "VIETNAM", "flag": "🇻🇳", "query": "Ninh Binh Trang An 4k"},
+    {"country": "VIETNAM", "flag": "🇻🇳", "query": "Ban Gioc waterfall Vietnam 4k"},
+    {"country": "VIETNAM", "flag": "🇻🇳", "query": "Sapa rice terraces 4k"},
+    {"country": "VIETNAM", "flag": "🇻🇳", "query": "Phong Nha cave Vietnam 4k"},
+    {"country": "VIETNAM", "flag": "🇻🇳", "query": "Da Lat Vietnam waterfalls 4k"},
+    {"country": "VIETNAM", "flag": "🇻🇳", "query": "Cat Ba island Vietnam 4k"},
+    {"country": "VIETNAM", "flag": "🇻🇳", "query": "Ha Giang mountain road Vietnam 4k"},
+
+    # ========================================================
+    # 🇵🇹 PORTUGAL
+    # ========================================================
+    {"country": "PORTUGAL", "flag": "🇵🇹", "query": "Madeira island cliffs ocean 4k"},
+    {"country": "PORTUGAL", "flag": "🇵🇹", "query": "Madeira levada misty forest 4k"},
+    {"country": "PORTUGAL", "flag": "🇵🇹", "query": "Pico do Arieiro Madeira clouds 4k"},
+    {"country": "PORTUGAL", "flag": "🇵🇹", "query": "Azores Sete Cidades lake 4k"},
+    {"country": "PORTUGAL", "flag": "🇵🇹", "query": "Azores volcanic landscape 4k"},
+    {"country": "PORTUGAL", "flag": "🇵🇹", "query": "Benagil cave Portugal 4k"},
+    {"country": "PORTUGAL", "flag": "🇵🇹", "query": "Madeira hidden waterfall 4k"},
+
+    # ========================================================
+    # 🇺🇸 USA
+    # ========================================================
+    {"country": "USA", "flag": "🇺🇸", "query": "Antelope Canyon sunbeam 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Grand Canyon sunrise 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Yosemite Valley waterfall 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Zion National Park cliffs 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Bryce Canyon hoodoos 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Horseshoe Bend Arizona 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Yellowstone Grand Prismatic Spring 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Glacier National Park Montana 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Hawaii Na Pali Coast 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Hawaii black sand beach 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Alaska glacier mountains 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Grand Teton National Park 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Olympic rainforest Washington 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Nā Pali Coast Kauai drone 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Bryce Canyon Milky Way 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "Death Valley moving dunes 4k"},
+
+    # ========================================================
+    # 🇨🇦 CANADA
+    # ========================================================
+    {"country": "CANADA", "flag": "🇨🇦", "query": "Lake Louise Banff 4k"},
+    {"country": "CANADA", "flag": "🇨🇦", "query": "Moraine Lake Canada 4k"},
+    {"country": "CANADA", "flag": "🇨🇦", "query": "Jasper National Park 4k"},
+    {"country": "CANADA", "flag": "🇨🇦", "query": "Canadian Rockies turquoise lake 4k"},
+    {"country": "CANADA", "flag": "🇨🇦", "query": "Yoho National Park waterfall 4k"},
+    {"country": "CANADA", "flag": "🇨🇦", "query": "Vancouver Island rainforest 4k"},
+    {"country": "CANADA", "flag": "🇨🇦", "query": "Athabasca Glacier 4k"},
+    {"country": "CANADA", "flag": "🇨🇦", "query": "Emerald Lake Canada 4k"},
+    {"country": "CANADA", "flag": "🇨🇦", "query": "Spirit Island Jasper Canada 4k"},
+
+    # ========================================================
+    # 🇫🇷 FRANCE
+    # ========================================================
+    {"country": "FRANCE", "flag": "🇫🇷", "query": "Chamonix Mont Blanc 4k"},
+    {"country": "FRANCE", "flag": "🇫🇷", "query": "Annecy Lake Alps 4k"},
+    {"country": "FRANCE", "flag": "🇫🇷", "query": "Verdon Gorge France 4k"},
+    {"country": "FRANCE", "flag": "🇫🇷", "query": "Corsica turquoise coast 4k"},
+    {"country": "FRANCE", "flag": "🇫🇷", "query": "Calanques Marseille France 4k"},
+    {"country": "FRANCE", "flag": "🇫🇷", "query": "Pyrenees mountain valley 4k"},
+
+    # ========================================================
+    # 🇪🇸 SPAIN
+    # ========================================================
+    {"country": "SPAIN", "flag": "🇪🇸", "query": "Mallorca dramatic coast 4k"},
+    {"country": "SPAIN", "flag": "🇪🇸", "query": "Tenerife Mount Teide 4k"},
+    {"country": "SPAIN", "flag": "🇪🇸", "query": "Picos de Europa Spain 4k"},
+    {"country": "SPAIN", "flag": "🇪🇸", "query": "Gran Canaria mountains 4k"},
+    {"country": "SPAIN", "flag": "🇪🇸", "query": "Gaztelugatxe Basque coast 4k"},
+    {"country": "SPAIN", "flag": "🇪🇸", "query": "Andalusia white villages mountains 4k"},
+
+    # ========================================================
+    # 🇬🇷 GREECE
+    # ========================================================
+    {"country": "GREECE", "flag": "🇬🇷", "query": "Santorini caldera sunset 4k"},
+    {"country": "GREECE", "flag": "🇬🇷", "query": "Milos Greece turquoise beaches 4k"},
+    {"country": "GREECE", "flag": "🇬🇷", "query": "Zakynthos Navagio beach 4k"},
+    {"country": "GREECE", "flag": "🇬🇷", "query": "Meteora Greece mountains 4k"},
+    {"country": "GREECE", "flag": "🇬🇷", "query": "Balos Lagoon Crete 4k"},
+    {"country": "GREECE", "flag": "🇬🇷", "query": "Melissani Cave Greece 4k"},
+
+    # ========================================================
+    # 🇸🇮 SLOVENIA
+    # ========================================================
+    {"country": "SLOVENIA", "flag": "🇸🇮", "query": "Lake Bled Slovenia 4k"},
+    {"country": "SLOVENIA", "flag": "🇸🇮", "query": "Lake Bohinj Slovenia 4k"},
+    {"country": "SLOVENIA", "flag": "🇸🇮", "query": "Soca Valley Slovenia 4k"},
+    {"country": "SLOVENIA", "flag": "🇸🇮", "query": "Vintgar Gorge Slovenia 4k"},
+    {"country": "SLOVENIA", "flag": "🇸🇮", "query": "Triglav National Park 4k"},
+
+    # ========================================================
+    # 🇲🇪 MONTENEGRO
+    # ========================================================
+    {"country": "MONTENEGRO", "flag": "🇲🇪", "query": "Bay of Kotor Montenegro 4k"},
+    {"country": "MONTENEGRO", "flag": "🇲🇪", "query": "Durmitor National Park 4k"},
+    {"country": "MONTENEGRO", "flag": "🇲🇪", "query": "Tara Canyon Montenegro 4k"},
+    {"country": "MONTENEGRO", "flag": "🇲🇪", "query": "Sveti Stefan Montenegro aerial 4k"},
+
+    # ========================================================
+    # 🇹🇷 TURKEY
+    # ========================================================
+    {"country": "TURKEY", "flag": "🇹🇷", "query": "Cappadocia balloons sunrise 4k"},
+    {"country": "TURKEY", "flag": "🇹🇷", "query": "Pamukkale Turkey aerial 4k"},
+    {"country": "TURKEY", "flag": "🇹🇷", "query": "Oludeniz turquoise lagoon 4k"},
+    {"country": "TURKEY", "flag": "🇹🇷", "query": "Mount Ararat Turkey 4k"},
+    {"country": "TURKEY", "flag": "🇹🇷", "query": "Butterfly Valley Turkey 4k"},
+    {"country": "TURKEY", "flag": "🇹🇷", "query": "Saklikent Canyon Turkey 4k"},
+
+    # ========================================================
+    # 🇬🇪 GEORGIA
+    # ========================================================
+    {"country": "GEORGIA", "flag": "🇬🇪", "query": "Kazbegi Georgia mountains 4k"},
+    {"country": "GEORGIA", "flag": "🇬🇪", "query": "Gergeti Trinity Church mountains 4k"},
+    {"country": "GEORGIA", "flag": "🇬🇪", "query": "Svaneti Georgia mountain villages 4k"},
+    {"country": "GEORGIA", "flag": "🇬🇪", "query": "Martvili Canyon Georgia 4k"},
+    {"country": "GEORGIA", "flag": "🇬🇪", "query": "Prometheus Cave Georgia 4k"},
+
+    # ========================================================
+    # 🇳🇵 NEPAL
+    # ========================================================
+    {"country": "NEPAL", "flag": "🇳🇵", "query": "Everest Himalayas sunrise 4k"},
+    {"country": "NEPAL", "flag": "🇳🇵", "query": "Annapurna mountain range 4k"},
+    {"country": "NEPAL", "flag": "🇳🇵", "query": "Gokyo Lakes Nepal 4k"},
+    {"country": "NEPAL", "flag": "🇳🇵", "query": "Himalayan mountain valley clouds 4k"},
+    {"country": "NEPAL", "flag": "🇳🇵", "query": "Langtang Valley Nepal 4k"},
+
+    # ========================================================
+    # 🇮🇳 INDIA
+    # ========================================================
+    {"country": "INDIA", "flag": "🇮🇳", "query": "Ladakh Himalayas India 4k"},
+    {"country": "INDIA", "flag": "🇮🇳", "query": "Valley of Flowers India 4k"},
+    {"country": "INDIA", "flag": "🇮🇳", "query": "Meghalaya waterfalls India 4k"},
+    {"country": "INDIA", "flag": "🇮🇳", "query": "Kerala backwaters aerial 4k"},
+    {"country": "INDIA", "flag": "🇮🇳", "query": "Spiti Valley India 4k"},
+    {"country": "INDIA", "flag": "🇮🇳", "query": "Zanskar Valley India 4k"},
+    {"country": "INDIA", "flag": "🇮🇳", "query": "Munnar tea plantations 4k"},
+
+    # ========================================================
+    # 🇵🇭 PHILIPPINES
+    # ========================================================
+    {"country": "PHILIPPINES", "flag": "🇵🇭", "query": "Palawan turquoise lagoons 4k"},
+    {"country": "PHILIPPINES", "flag": "🇵🇭", "query": "El Nido Philippines drone 4k"},
+    {"country": "PHILIPPINES", "flag": "🇵🇭", "query": "Coron Palawan lakes 4k"},
+    {"country": "PHILIPPINES", "flag": "🇵🇭", "query": "Bohol Chocolate Hills 4k"},
+    {"country": "PHILIPPINES", "flag": "🇵🇭", "query": "Siargao island Philippines 4k"},
+    {"country": "PHILIPPINES", "flag": "🇵🇭", "query": "Siquijor waterfalls Philippines 4k"},
+
+    # ========================================================
+    # 🇹🇭 THAILAND
+    # ========================================================
+    {"country": "THAILAND", "flag": "🇹🇭", "query": "Phi Phi Islands Thailand 4k"},
+    {"country": "THAILAND", "flag": "🇹🇭", "query": "Krabi limestone cliffs 4k"},
+    {"country": "THAILAND", "flag": "🇹🇭", "query": "Phang Nga Bay Thailand 4k"},
+    {"country": "THAILAND", "flag": "🇹🇭", "query": "Koh Lipe Thailand turquoise 4k"},
+    {"country": "THAILAND", "flag": "🇹🇭", "query": "Erawan Waterfalls Thailand 4k"},
+
+    # ========================================================
+    # 🇦🇺 AUSTRALIA
+    # ========================================================
+    {"country": "AUSTRALIA", "flag": "🇦🇺", "query": "Great Barrier Reef aerial 4k"},
+    {"country": "AUSTRALIA", "flag": "🇦🇺", "query": "Whitehaven Beach drone 4k"},
+    {"country": "AUSTRALIA", "flag": "🇦🇺", "query": "Twelve Apostles Australia 4k"},
+    {"country": "AUSTRALIA", "flag": "🇦🇺", "query": "Blue Mountains Australia 4k"},
+    {"country": "AUSTRALIA", "flag": "🇦🇺", "query": "Tasmania wilderness 4k"},
+    {"country": "AUSTRALIA", "flag": "🇦🇺", "query": "Uluru sunrise 4k"},
+    {"country": "AUSTRALIA", "flag": "🇦🇺", "query": "Daintree rainforest 4k"},
+    {"country": "AUSTRALIA", "flag": "🇦🇺", "query": "Wineglass Bay Tasmania 4k"},
+
+    # ========================================================
+    # 🇿🇦 SOUTH AFRICA
+    # ========================================================
+    {"country": "SOUTH AFRICA", "flag": "🇿🇦", "query": "Table Mountain Cape Town 4k"},
+    {"country": "SOUTH AFRICA", "flag": "🇿🇦", "query": "Drakensberg mountains 4k"},
+    {"country": "SOUTH AFRICA", "flag": "🇿🇦", "query": "Blyde River Canyon 4k"},
+    {"country": "SOUTH AFRICA", "flag": "🇿🇦", "query": "Garden Route South Africa 4k"},
+    {"country": "SOUTH AFRICA", "flag": "🇿🇦", "query": "Wild Coast South Africa 4k"},
+
+    # ========================================================
+    # 🇳🇦 NAMIBIA
+    # ========================================================
+    {"country": "NAMIBIA", "flag": "🇳🇦", "query": "Sossusvlei red dunes 4k"},
+    {"country": "NAMIBIA", "flag": "🇳🇦", "query": "Deadvlei Namibia 4k"},
+    {"country": "NAMIBIA", "flag": "🇳🇦", "query": "Namib desert aerial 4k"},
+    {"country": "NAMIBIA", "flag": "🇳🇦", "query": "Skeleton Coast Namibia 4k"},
+    {"country": "NAMIBIA", "flag": "🇳🇦", "query": "Spitzkoppe Namibia 4k"},
+
+    # ========================================================
+    # 🇲🇦 MOROCCO
+    # ========================================================
+    {"country": "MOROCCO", "flag": "🇲🇦", "query": "Sahara desert Morocco dunes 4k"},
+    {"country": "MOROCCO", "flag": "🇲🇦", "query": "Atlas Mountains Morocco 4k"},
+    {"country": "MOROCCO", "flag": "🇲🇦", "query": "Ait Ben Haddou desert landscape 4k"},
+    {"country": "MOROCCO", "flag": "🇲🇦", "query": "Dades Gorge Morocco 4k"},
+    {"country": "MOROCCO", "flag": "🇲🇦", "query": "Todra Gorge Morocco 4k"},
+    {"country": "MOROCCO", "flag": "🇲🇦", "query": "Chefchaouen mountains Morocco 4k"},
+
+    # ========================================================
+    # 🇯🇴 JORDAN
+    # ========================================================
+    {"country": "JORDAN", "flag": "🇯🇴", "query": "Wadi Rum Jordan desert 4k"},
+    {"country": "JORDAN", "flag": "🇯🇴", "query": "Wadi Rum red canyon 4k"},
+    {"country": "JORDAN", "flag": "🇯🇴", "query": "Dead Sea Jordan aerial 4k"},
+    {"country": "JORDAN", "flag": "🇯🇴", "query": "Dana Biosphere Jordan 4k"},
+
+    # ========================================================
+    # 🇲🇽 MEXICO
+    # ========================================================
+    {"country": "MEXICO", "flag": "🇲🇽", "query": "Sumidero Canyon Mexico 4k"},
+    {"country": "MEXICO", "flag": "🇲🇽", "query": "Cenote Mexico turquoise cave 4k"},
+    {"country": "MEXICO", "flag": "🇲🇽", "query": "Copper Canyon Mexico 4k"},
+    {"country": "MEXICO", "flag": "🇲🇽", "query": "Bacalar lagoon Mexico 4k"},
+    {"country": "MEXICO", "flag": "🇲🇽", "query": "Hierve el Agua Mexico 4k"},
+    {"country": "MEXICO", "flag": "🇲🇽", "query": "Holbox Mexico turquoise water 4k"},
+
+    # ========================================================
+    # 🇵🇪 PERU
+    # ========================================================
+    {"country": "PERU", "flag": "🇵🇪", "query": "Machu Picchu clouds sunrise 4k"},
+    {"country": "PERU", "flag": "🇵🇪", "query": "Rainbow Mountain Peru 4k"},
+    {"country": "PERU", "flag": "🇵🇪", "query": "Huacachina desert oasis 4k"},
+    {"country": "PERU", "flag": "🇵🇪", "query": "Colca Canyon Peru 4k"},
+    {"country": "PERU", "flag": "🇵🇪", "query": "Laguna Humantay Peru 4k"},
+    {"country": "PERU", "flag": "🇵🇪", "query": "Ausangate Peru mountains 4k"},
+
+    # ========================================================
+    # 🇧🇴 BOLIVIA
+    # ========================================================
+    {"country": "BOLIVIA", "flag": "🇧🇴", "query": "Salar de Uyuni mirror Bolivia 4k"},
+    {"country": "BOLIVIA", "flag": "🇧🇴", "query": "Laguna Colorada Bolivia 4k"},
+    {"country": "BOLIVIA", "flag": "🇧🇴", "query": "Bolivia high altitude volcano lake 4k"},
+    {"country": "BOLIVIA", "flag": "🇧🇴", "query": "Eduardo Avaroa Bolivia landscape 4k"},
+
+    # ========================================================
+    # 🇨🇱 CHILE
+    # ========================================================
+    {"country": "CHILE", "flag": "🇨🇱", "query": "Torres del Paine Chile 4k"},
+    {"country": "CHILE", "flag": "🇨🇱", "query": "Atacama Desert Chile 4k"},
+    {"country": "CHILE", "flag": "🇨🇱", "query": "Marble Caves Chile 4k"},
+    {"country": "CHILE", "flag": "🇨🇱", "query": "Patagonia Chile mountains 4k"},
+    {"country": "CHILE", "flag": "🇨🇱", "query": "Valle de la Luna Chile 4k"},
+    {"country": "CHILE", "flag": "🇨🇱", "query": "General Carrera Lake Chile 4k"},
+
+    # ========================================================
+    # 🇦🇷 ARGENTINA
+    # ========================================================
+    {"country": "ARGENTINA", "flag": "🇦🇷", "query": "Patagonia Argentina mountains 4k"},
+    {"country": "ARGENTINA", "flag": "🇦🇷", "query": "Perito Moreno Glacier 4k"},
+    {"country": "ARGENTINA", "flag": "🇦🇷", "query": "Iguazu Falls Argentina 4k"},
+    {"country": "ARGENTINA", "flag": "🇦🇷", "query": "Mount Fitz Roy Patagonia 4k"},
+    {"country": "ARGENTINA", "flag": "🇦🇷", "query": "Quebrada de Humahuaca Argentina 4k"},
+
+    # ========================================================
+    # 🇧🇷 BRAZIL
+    # ========================================================
+    {"country": "BRAZIL", "flag": "🇧🇷", "query": "Lençóis Maranhenses Brazil lagoons 4k"},
+    {"country": "BRAZIL", "flag": "🇧🇷", "query": "Iguazu Falls Brazil aerial 4k"},
+    {"country": "BRAZIL", "flag": "🇧🇷", "query": "Amazon rainforest aerial 4k"},
+    {"country": "BRAZIL", "flag": "🇧🇷", "query": "Fernando de Noronha Brazil 4k"},
+    {"country": "BRAZIL", "flag": "🇧🇷", "query": "Chapada Diamantina Brazil 4k"},
+    {"country": "BRAZIL", "flag": "🇧🇷", "query": "Jalapao Brazil golden dunes 4k"},
+
+    # ========================================================
+    # 🇨🇴 COLOMBIA
+    # ========================================================
+    {"country": "COLOMBIA", "flag": "🇨🇴", "query": "Cocora Valley Colombia giant palms 4k"},
+    {"country": "COLOMBIA", "flag": "🇨🇴", "query": "Guatape Colombia mountains lake 4k"},
+    {"country": "COLOMBIA", "flag": "🇨🇴", "query": "Caño Cristales Colombia rainbow river 4k"},
+    {"country": "COLOMBIA", "flag": "🇨🇴", "query": "Tayrona National Park Colombia 4k"},
+    {"country": "COLOMBIA", "flag": "🇨🇴", "query": "Lost City Colombia jungle 4k"},
+
+    # ========================================================
+    # 🇪🇨 ECUADOR
+    # ========================================================
+    {"country": "ECUADOR", "flag": "🇪🇨", "query": "Galapagos Islands Ecuador 4k"},
+    {"country": "ECUADOR", "flag": "🇪🇨", "query": "Cotopaxi volcano Ecuador 4k"},
+    {"country": "ECUADOR", "flag": "🇪🇨", "query": "Quilotoa crater lake Ecuador 4k"},
+    {"country": "ECUADOR", "flag": "🇪🇨", "query": "Amazon Ecuador rainforest 4k"},
+
+    # ========================================================
+    # 🇨🇷 COSTA RICA
+    # ========================================================
+    {"country": "COSTA RICA", "flag": "🇨🇷", "query": "Costa Rica rainforest waterfall 4k"},
+    {"country": "COSTA RICA", "flag": "🇨🇷", "query": "Arenal volcano Costa Rica 4k"},
+    {"country": "COSTA RICA", "flag": "🇨🇷", "query": "Manuel Antonio Costa Rica 4k"},
+    {"country": "COSTA RICA", "flag": "🇨🇷", "query": "Rio Celeste Costa Rica blue river 4k"},
+
+    # ========================================================
+    # 🇳🇵 / 🇧🇹 HIMALAYAN WORLD
+    # ========================================================
+    {"country": "BHUTAN", "flag": "🇧🇹", "query": "Tiger Nest Bhutan mountains 4k"},
+    {"country": "BHUTAN", "flag": "🇧🇹", "query": "Bhutan Himalayan valley clouds 4k"},
+    {"country": "BHUTAN", "flag": "🇧🇹", "query": "Punakha Bhutan valley 4k"},
+    {"country": "PAKISTAN", "flag": "🇵🇰", "query": "Hunza Valley Pakistan 4k"},
+    {"country": "PAKISTAN", "flag": "🇵🇰", "query": "Skardu Pakistan mountains 4k"},
+    {"country": "PAKISTAN", "flag": "🇵🇰", "query": "Attabad Lake Pakistan turquoise 4k"},
+    {"country": "PAKISTAN", "flag": "🇵🇰", "query": "Fairy Meadows Pakistan 4k"},
+
+    # ========================================================
+    # 🇰🇿 CENTRAL ASIA
+    # ========================================================
+    {"country": "KAZAKHSTAN", "flag": "🇰🇿", "query": "Charyn Canyon Kazakhstan 4k"},
+    {"country": "KAZAKHSTAN", "flag": "🇰🇿", "query": "Kolsai Lakes Kazakhstan 4k"},
+    {"country": "KAZAKHSTAN", "flag": "🇰🇿", "query": "Kaindy Lake Kazakhstan submerged forest 4k"},
+    {"country": "KYRGYZSTAN", "flag": "🇰🇬", "query": "Issyk Kul Kyrgyzstan mountains 4k"},
+    {"country": "KYRGYZSTAN", "flag": "🇰🇬", "query": "Ala Archa Kyrgyzstan 4k"},
+    {"country": "KYRGYZSTAN", "flag": "🇰🇬", "query": "Song Kul Kyrgyzstan 4k"},
+    {"country": "TAJIKISTAN", "flag": "🇹🇯", "query": "Pamir Mountains Tajikistan 4k"},
+    {"country": "TAJIKISTAN", "flag": "🇹🇯", "query": "Seven Lakes Tajikistan 4k"},
+    {"country": "UZBEKISTAN", "flag": "🇺🇿", "query": "Chimgan Mountains Uzbekistan 4k"},
+    {"country": "UZBEKISTAN", "flag": "🇺🇿", "query": "Charvak Lake Uzbekistan mountains 4k"},
+    {"country": "UZBEKISTAN", "flag": "🇺🇿", "query": "Zaamin National Park Uzbekistan 4k"},
+
+    # ========================================================
+    # 🏝️ ISLAND PARADISE
+    # ========================================================
+    {"country": "MALDIVES", "flag": "🇲🇻", "query": "Maldives turquoise islands aerial 4k"},
+    {"country": "SEYCHELLES", "flag": "🇸🇨", "query": "Seychelles granite rocks turquoise water 4k"},
+    {"country": "MAURITIUS", "flag": "🇲🇺", "query": "Mauritius underwater waterfall illusion 4k"},
+    {"country": "FIJI", "flag": "🇫🇯", "query": "Fiji tropical islands drone 4k"},
+    {"country": "PALAU", "flag": "🇵🇼", "query": "Palau Rock Islands aerial 4k"},
+    {"country": "FRENCH POLYNESIA", "flag": "🇵🇫", "query": "Bora Bora lagoon aerial 4k"},
+    {"country": "FRENCH POLYNESIA", "flag": "🇵🇫", "query": "Moorea island mountains 4k"},
+    {"country": "SAMOA", "flag": "🇼🇸", "query": "Samoa To Sua ocean trench 4k"},
+    {"country": "PALAU", "flag": "🇵🇼", "query": "Palau jellyfish lake 4k"},
+    {"country": "BAHAMAS", "flag": "🇧🇸", "query": "Bahamas turquoise water aerial 4k"},
+
+    # ========================================================
+    # 🧊 EXTREME PLACES
+    # ========================================================
+    {"country": "GREENLAND", "flag": "🇬🇱", "query": "Greenland giant icebergs aerial 4k"},
+    {"country": "GREENLAND", "flag": "🇬🇱", "query": "Greenland fjord ice mountains 4k"},
+    {"country": "SVALBARD", "flag": "🇳🇴", "query": "Svalbard Arctic glaciers 4k"},
+    {"country": "SVALBARD", "flag": "🇳🇴", "query": "Svalbard polar landscape 4k"},
+    {"country": "ANTARCTICA", "flag": "🇦🇶", "query": "Antarctica ice mountains aerial 4k"},
+    {"country": "ANTARCTICA", "flag": "🇦🇶", "query": "Antarctica blue ice caves 4k"},
+    {"country": "ANTARCTICA", "flag": "🇦🇶", "query": "Antarctica iceberg ocean cinematic 4k"},
+
+    # ========================================================
+    # 🌲 FOREST / WATERFALL
+    # ========================================================
+    {"country": "CANADA", "flag": "🇨🇦", "query": "hidden Canadian rainforest waterfall 4k"},
+    {"country": "USA", "flag": "🇺🇸", "query": "hidden forest waterfall Oregon 4k"},
+    {"country": "BRAZIL", "flag": "🇧🇷", "query": "Amazon hidden waterfall jungle 4k"},
+    {"country": "JAPAN", "flag": "🇯🇵", "query": "ancient Japanese forest waterfall 4k"},
+    {"country": "NEW ZEALAND", "flag": "🇳🇿", "query": "New Zealand hidden rainforest waterfall 4k"},
+    {"country": "INDONESIA", "flag": "🇮🇩", "query": "hidden Indonesian jungle waterfall 4k"},
+    {"country": "COSTA RICA", "flag": "🇨🇷", "query": "hidden Costa Rica jungle waterfall 4k"},
+    {"country": "VIETNAM", "flag": "🇻🇳", "query": "hidden Vietnam jungle waterfall 4k"},
+    {"country": "PHILIPPINES", "flag": "🇵🇭", "query": "hidden Philippines jungle waterfall 4k"},
+    {"country": "THAILAND", "flag": "🇹🇭", "query": "hidden Thailand jungle waterfall 4k"},
+
+    # ========================================================
+    # 🤖 AI / FANTASY WORLD
+    # ========================================================
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated impossible floating island waterfall cinematic 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated giant floating mountains above clouds 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated endless turquoise waterfall valley 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated magical glowing forest lake 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated crystal mountain landscape 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated giant waterfall inside canyon 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated floating jungle islands clouds 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated blue bioluminescent forest 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated fantasy ocean cliffs sunset 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated impossible rainbow mountains 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated giant tree island floating sky 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated hidden paradise valley waterfalls 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated glowing blue waterfall night 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated fantasy crystal cave lake 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated massive waterfall above clouds 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated ancient jungle ruins waterfall 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated giant moon alien landscape 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated pink mountains turquoise lake 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated emerald valley giant cliffs 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated fantasy island endless ocean 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated waterfall from floating island 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated golden desert turquoise river 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated giant crystal canyon 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated hidden valley aurora 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated giant flowers mountain valley 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated fantasy glacier glowing blue 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated floating waterfall mountains 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated giant canyon ocean waterfall 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated magical valley under two moons 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated impossible ocean cliff city nature 4k"},
+    {"country": "AI WORLD", "flag": "🤖", "query": "AI generated surreal forest with giant waterfall 4k"},
+
+    # ========================================================
+    # 👽 ALIEN PLANETS
+    # ========================================================
+    {"country": "ALIEN WORLD", "flag": "👽", "query": "alien planet mountains giant moons cinematic 4k"},
+    {"country": "ALIEN WORLD", "flag": "👽", "query": "alien planet ocean cliffs cinematic 4k"},
+    {"country": "ALIEN WORLD", "flag": "👽", "query": "alien jungle glowing plants cinematic 4k"},
+    {"country": "ALIEN WORLD", "flag": "👽", "query": "alien desert giant planet sky 4k"},
+    {"country": "ALIEN WORLD", "flag": "👽", "query": "alien waterfall landscape cinematic 4k"},
+    {"country": "ALIEN WORLD", "flag": "👽", "query": "alien crystal mountains blue atmosphere 4k"},
+    {"country": "ALIEN WORLD", "flag": "👽", "query": "alien ocean bioluminescent island 4k"},
+    {"country": "ALIEN WORLD", "flag": "👽", "query": "alien valley aurora giant moon 4k"},
+    {"country": "ALIEN WORLD", "flag": "👽", "query": "alien forest giant trees mist 4k"},
+    {"country": "ALIEN WORLD", "flag": "👽", "query": "alien floating islands clouds 4k"},
+    {"country": "ALIEN WORLD", "flag": "👽", "query": "alien turquoise lake impossible mountains 4k"},
+    {"country": "ALIEN WORLD", "flag": "👽", "query": "alien planet giant waterfall canyon 4k"},
+
+    # ========================================================
+    # 🌌 COSMIC NATURE
+    # ========================================================
+    {"country": "COSMIC WORLD", "flag": "🌌", "query": "cosmic mountains galaxy sky cinematic 4k"},
+    {"country": "COSMIC WORLD", "flag": "🌌", "query": "forest under Milky Way giant galaxy 4k"},
+    {"country": "COSMIC WORLD", "flag": "🌌", "query": "waterfall under northern lights galaxy 4k"},
+    {"country": "COSMIC WORLD", "flag": "🌌", "query": "surreal ocean galaxy reflection 4k"},
+    {"country": "COSMIC WORLD", "flag": "🌌", "query": "giant planet above mountain valley 4k"},
+    {"country": "COSMIC WORLD", "flag": "🌌", "query": "galaxy reflected in turquoise mountain lake 4k"},
+    {"country": "COSMIC WORLD", "flag": "🌌", "query": "cosmic waterfall under Milky Way 4k"},
+    {"country": "COSMIC WORLD", "flag": "🌌", "query": "giant moon above endless ocean cliffs 4k"},
+]
+
+
+# ============================================================
+# 🎨 CINEMATIC VARIATIONS
+# ============================================================
+
+CINEMATIC_STYLES = [
+    "cinematic",
+    "ultra realistic",
+    "photorealistic",
+    "epic aerial drone",
+    "slow cinematic drone",
+    "golden hour",
+    "sunrise",
+    "sunset",
+    "misty morning",
+    "dramatic clouds",
+    "after rain",
+    "foggy atmosphere",
+    "moonlight",
+    "blue hour",
+    "soft sunlight",
+    "volumetric lighting",
+    "8k nature documentary",
+    "travel documentary",
+    "high detail landscape",
+]
+
+
+# ============================================================
+# 🎥 CAMERA VARIATIONS
+# ============================================================
+
+CAMERA_STYLES = [
+    "drone flyover",
+    "slow aerial reveal",
+    "wide establishing shot",
+    "low angle cinematic shot",
+    "high altitude aerial view",
+    "slow forward camera movement",
+    "smooth orbit camera",
+    "mountain reveal",
+    "waterfall reveal",
+    "ocean reveal",
+    "valley reveal",
+    "vertical cinematic push in",
+]
+
+
+# ============================================================
+# 🌦️ ATMOSPHERE
+# ============================================================
+
+ATMOSPHERES = [
+    "soft morning mist",
+    "dramatic clouds",
+    "light fog",
+    "sun rays through clouds",
+    "floating clouds",
+    "fresh rain atmosphere",
+    "crystal clear sky",
+    "golden sunlight",
+    "soft blue atmosphere",
+    "cinematic haze",
+    "volumetric sun rays",
+    "light atmospheric fog",
+]
+
+
+# ============================================================
+# 🔥 RANDOM QUERY ENHANCER
+# ============================================================
+
+def enhance_query(base_query):
+    style = random.choice(CINEMATIC_STYLES)
+    camera = random.choice(CAMERA_STYLES)
+    atmosphere = random.choice(ATMOSPHERES)
+
+    return (
+        f"{base_query}, "
+        f"{style}, "
+        f"{camera}, "
+        f"{atmosphere}, "
+        f"ultra detailed, "
+        f"natural colors, "
+        f"high quality, "
+        f"4k"
+    )
+
+
+# ============================================================
+# 🎯 GET RANDOM PLACE
+# ============================================================
+
+def get_random_place():
+    place = random.choice(UNREAL_PLACES_POOL)
+
+    return {
+        "country": place["country"],
+        "flag": place["flag"],
+        "query": enhance_query(place["query"]),
+    }
+
+
+# ============================================================
+# 🌍 GET REAL PLACE ONLY
+# ============================================================
+
+def get_real_place():
+    real_places = [
+        x for x in UNREAL_PLACES_POOL
+        if x["country"] not in [
+            "AI WORLD",
+            "ALIEN WORLD",
+            "COSMIC WORLD",
+        ]
+    ]
+
+    place = random.choice(real_places)
+
+    return {
+        "country": place["country"],
+        "flag": place["flag"],
+        "query": enhance_query(place["query"]),
+    }
+
+
+# ============================================================
+# 🤖 GET AI PLACE ONLY
+# ============================================================
+
+def get_ai_place():
+    ai_places = [
+        x for x in UNREAL_PLACES_POOL
+        if x["country"] in [
+            "AI WORLD",
+            "ALIEN WORLD",
+            "COSMIC WORLD",
+        ]
+    ]
+
+    place = random.choice(ai_places)
+
+    return {
+        "country": place["country"],
+        "flag": place["flag"],
+        "query": enhance_query(place["query"]),
+    }
+
+
+# ============================================================
+# 🌎 GET PLACE BY COUNTRY
+# ============================================================
+
+def get_place_by_country(country):
+    matches = [
+        x for x in UNREAL_PLACES_POOL
+        if x["country"].lower() == country.lower()
+    ]
+
+    if not matches:
+        return get_random_place()
+
+    place = random.choice(matches)
+
+    return {
+        "country": place["country"],
+        "flag": place["flag"],
+        "query": enhance_query(place["query"]),
+    }
+
+
+# ============================================================
+# 🔥 GENERATE UNIQUE PLACE
+# ============================================================
+
+_recent_queries = []
+
+
+def get_unique_place():
+    global _recent_queries
+
+    max_attempts = 100
+
+    for _ in range(max_attempts):
+        place = get_random_place()
+        query = place["query"]
+
+        if query not in _recent_queries:
+            _recent_queries.append(query)
+
+            # Oxirgi 100 ta videoni xotirada saqlaydi
+            if len(_recent_queries) > 100:
+                _recent_queries.pop(0)
+
+            return place
+
+    # Juda kamdan-kam holatda
+    return get_random_place()
+
+
+# ============================================================
+# 🎬 GENERATE VIDEO LOCATION
+# ============================================================
+
+def generate_video_location():
+    place = get_unique_place()
+
+    return {
+        "country": place["country"],
+        "flag": place["flag"],
+        "search_query": place["query"],
+        "display_name": f'{place["flag"]} {place["country"]}',
+    }
+
+
+# ============================================================
+# 🎵 AUDIO VA MONTAJ MEXANIZMI ("SAIL" RITMIDA ULTRA 4K)
+# ============================================================
+
+def get_audio_file():
+    tracks = glob.glob("music/*.mp3") + glob.glob("*.mp3")
     if tracks:
+        print(f"[AUDIO TANLANDI]: {tracks[0]}")
         return tracks[0]
-    silent_audio = os.path.join(MUSIC_DIR, "ambient_silence.mp3")
-    if not os.path.exists(silent_audio):
-        subprocess.run([
-            "ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
-            "-t", "130", "-q:a", "9", "-acodec", "libmp3lame", silent_audio
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return silent_audio
 
-def render_main_video(clips, audio, country):
-    print("\n--- 2 Daqiqalik Asosiy Video Render qilinmoqda ---")
-    safe_name = country.replace(" ", "_")
-    output_path = os.path.join(OUTPUT_DIR, f"{safe_name}_Main_2Min.mp4")
-    concat_txt = "concat_main.txt"
-    extended = (clips * 10)[:24]
-    with open(concat_txt, "w") as f:
-        for c in extended:
-            f.write(f"file '{os.path.abspath(c)}'\n")
-            f.write("duration 5\n")
+    fallback = os.path.join(MUSIC_DIR, "sail_beat.mp3")
+    print("[AUDIO]: Repodan musiqa topilmadi, zaxira trek yuklanmoqda...")
+    url = "https://cdn.pixabay.com/download/audio/2022/11/06/audio_c937ecfa86.mp3?filename=trap-future-bass-royalty-free-music-125633.mp3"
+    r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
+    with open(fallback, "wb") as f:
+        f.write(r.content)
+    return fallback
 
-    cmd = [
-        "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_txt,
-        "-i", audio, "-t", "120",
-        "-vf", "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080",
-        "-af", "afade=t=out:st=117:d=3",
-        "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-b:a", "192k",
-        output_path
-    ]
-    subprocess.run(cmd, check=True)
-    if os.path.exists(concat_txt): os.remove(concat_txt)
-    print(f"[TAYYOR]: {output_path}")
 
-def render_single_short(clips, audio, country, short_index):
-    print(f"\n--- Shorts #{short_index} Render qilinmoqda ---")
-    safe_name = country.replace(" ", "_")
-    short_path = os.path.join(OUTPUT_DIR, f"{safe_name}_Short_{short_index}.mp4")
-    concat_short = f"concat_short_{short_index}.txt"
+def download_crisp_4k_clip(query, idx):
+    file_path = os.path.join(VIDEOS_DIR, f"clip_{idx}.mp4")
+    if not PEXELS_API_KEY:
+        print("[XATO]: PEXELS_API_KEY Secrets ichida topilmadi!")
+        return None
 
-    offset = (short_index - 1) * 2
-    short_clips = (clips[offset:] + clips[:offset])[:6]
-    with open(concat_short, "w") as f:
-        for c in short_clips:
-            f.write(f"file '{os.path.abspath(c)}'\n")
-            f.write("duration 5\n")
+    try:
+        url = f"https://api.pexels.com/videos/search?query={query}&per_page=5&orientation=landscape"
+        r = requests.get(url, headers={"Authorization": PEXELS_API_KEY}, timeout=20).json()
+        videos = r.get("videos", [])
+        if videos:
+            files = videos[0].get("video_files", [])
+            best = max(files, key=lambda x: (x.get("width", 0) * x.get("height", 0)))
+            link = best.get("link")
 
-    cmd = [
-        "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_short,
-        "-i", audio, "-t", "30",
-        "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
-        "-af", "afade=t=out:st=28:d=2",
-        "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        short_path
-    ]
-    subprocess.run(cmd, check=True)
-    if os.path.exists(concat_short): os.remove(concat_short)
-    print(f"[TAYYOR]: {short_path}")
+            resp = requests.get(link, stream=True, timeout=60)
+            with open(file_path, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+            print(f"[YUKLANDI - 4K ULTRA]: {query[:45]}...")
+            return file_path
+    except Exception as e:
+        print(f"[XATO]: {query[:30]} - {e}")
+    return None
+
+
+def build_crisp_synced_short(short_index, spots, audio_path):
+    output_file = os.path.join(OUTPUT_DIR, f"Short_{short_index}_UltraCrisp.mp4")
+    print(f"\n--- Ultra-tiniq Shorts #{short_index} montaj qilinmoqda ---")
+
+    # 1. Boshlang'ich Hook (2.2s - 'SAIL' zarbasigacha)
+    hook_video = f"hook_{short_index}.mp4"
+    subprocess.run([
+        "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=2.2:r=30",
+        "-vf", "drawtext=text='PLACES ON EARTH THAT\\nDON’T FEEL REAL 🤯':fontcolor=white:fontsize=56:x=(w-text_w)/2:y=(h-text_h)/2:line_spacing=20",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", hook_video
+    ], check=True)
+
+    temp_files = [hook_video]
+    concat_list = f"concat_{short_index}.txt"
+
+    with open(concat_list, "w") as f:
+        f.write(f"file '{os.path.abspath(hook_video)}'\n")
+
+        for i, spot in enumerate(spots):
+            raw_clip = download_crisp_4k_clip(spot["query"], f"{short_index}_{i}")
+            if not raw_clip:
+                continue
+
+            # Qora ekranda davlat nomi (0.8s)
+            card_video = f"card_{short_index}_{i}.mp4"
+            country_text = f"📍 {spot['country']} {spot['flag']}"
+            subprocess.run([
+                "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=0.8:r=30",
+                "-vf", f"drawtext=text='{country_text}':fontcolor=white:fontsize=65:x=(w-text_w)/2:y=(h-text_h)/2",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", card_video
+            ], check=True)
+            temp_files.append(card_video)
+
+            # PROFESSIONAL ULTRA HD GRAFIKA: Unsharp + Rang to'yinganligi (HDR) + CRF 17
+            ultra_clear_vf = (
+                "scale=1080:1920:force_original_aspect_ratio=increase,"
+                "crop=1080:1920,"
+                "unsharp=5:5:1.2:5:5:0.0,"
+                "eq=contrast=1.14:saturation=1.28:brightness=0.02,fps=30"
+            )
+
+            proc_clip = f"proc_{short_index}_{i}.mp4"
+            subprocess.run([
+                "ffmpeg", "-y", "-i", raw_clip, "-t", "3.2",
+                "-vf", ultra_clear_vf,
+                "-c:v", "libx264", "-crf", "17", "-preset", "fast", "-pix_fmt", "yuv420p",
+                proc_clip
+            ], check=True)
+            temp_files.append(proc_clip)
+
+            f.write(f"file '{os.path.abspath(card_video)}'\n")
+            f.write(f"file '{os.path.abspath(proc_clip)}'\n")
+
+    # Kadrlar oqimini birlashtirish
+    temp_merged = f"merged_{short_index}.mp4"
+    subprocess.run([
+        "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_list,
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", temp_merged
+    ], check=True)
+
+    # 320k toza audio bilan montaj qilish
+    subprocess.run([
+        "ffmpeg", "-y", "-i", temp_merged, "-i", audio_path,
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "320k",
+        "-shortest",
+        output_file
+    ], check=True)
+
+    # Chiqindilarni tozalash
+    for tf in temp_files + [concat_list, temp_merged]:
+        if os.path.exists(tf):
+            os.remove(tf)
+
+    print(f"[TAYYOR ULTRA HD]: {output_file}")
+
+
+# ============================================================
+# 🚀 ASOSIY ISHGA TUSHIRISH (MAIN)
+# ============================================================
 
 if __name__ == "__main__":
-    task = get_current_task()
-    print(f"Joriy reja vazifasi: {task.upper()}")
+    audio = get_audio_file()
 
-    plan = get_daily_content_plan()
-    country = plan.get("country", "Earth")
-    clips = download_footage(plan.get("queries", []))
+    # Har bir Shorts uchun 5 tadan noyob lokatsiyani tanlab render qilish
+    for s_idx in range(1, 5):
+        selected_spots = [get_unique_place() for _ in range(5)]
+        build_crisp_synced_short(s_idx, selected_spots, audio)
 
-    if clips:
-        audio = resolve_audio()
-        if task == "main":
-            render_main_video(clips, audio, country)
-        elif task == "short1":
-            render_single_short(clips, audio, country, 1)
-        elif task == "short2":
-            render_single_short(clips, audio, country, 2)
-        elif task == "short3":
-            render_single_short(clips, audio, country, 3)
-        elif task == "short4":
-            render_single_short(clips, audio, country, 4)
-        else: # "all" holatida hammasini birvarakayiga yasaydi
-            render_main_video(clips, audio, country)
-            for i in range(1, 5):
-                render_single_short(clips, audio, country, i)
-        print("\n=== VAZIFA MUVAFFAQIYATLI YAKUNLANDI ===")
-    else:
-        print("[XATO]: Kadrlar yuklanmadi. Kalitni tekshiring.")
+    print("\n=== BARCHA NOYOB LOKATSIYALAR ASOSIDA 4 TA ULTRA SHORTS TAYYORLANDI ===")
