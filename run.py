@@ -13,6 +13,10 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 VIDEOS_DIR = "videos"
 OUTPUT_DIR = "output"
 MUSIC_DIR = "music"
+ YOUTUBE_AUDIO_URL = "https://youtu.be/vwfUyt3YSjQ"
+ YOUTUBE_AUDIO_START = "64"
+
+ os.makedirs(VIDEOS_DIR, exist_ok=True)
 
 os.makedirs(VIDEOS_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -698,14 +702,14 @@ def generate_video_location():
     }
 
 
-# ============================================================
-# 🎵 AUDIO VA ULTRA HD MONTAJ MEXANIZMI
-# ============================================================
-
-YOUTUBE_AUDIO_URL = "https://youtu.be/vwfUyt3YSjQ?t=64"
-
 def has_audio_stream(path):
-    """FFmpeg audio stream mavjudligini tekshirish"""
+    """Faylda haqiqiy audio stream borligini tekshiradi."""
+    if not os.path.isfile(path):
+        return False
+
+    if os.path.getsize(path) == 0:
+        return False
+
     result = subprocess.run(
         [
             "ffprobe",
@@ -716,42 +720,49 @@ def has_audio_stream(path):
             path,
         ],
         capture_output=True,
-        text=True
+        text=True,
     )
+
     return result.returncode == 0 and result.stdout.strip() == "audio"
 
-def get_audio_file():
-    """Audio faylini tekshirish va YouTube'dan yuklash"""
-    candidates = []
-    for ext in ["*.mp3", "*.wav", "*.m4a", "*.aac"]:
-        candidates.extend(glob.glob(os.path.join("**", ext), recursive=True))
-    
-    for candidate in candidates:
-        if os.path.isfile(candidate) and has_audio_stream(candidate):
-            print(f"[AUDIO TANLANDI]: {candidate}")
-            return os.path.abspath(candidate)
 
-    fallback = os.path.join(MUSIC_DIR, "sail_beat.mp3")
-    print("[AUDIO]: Valid audio topilmadi, YouTube'dan yuklanmoqda...")
-    
-    try:
-        subprocess.run([
+def get_audio_file():
+    """YouTube'dan musiqani yuklab, tekshirilgan audio faylni qaytaradi."""
+    fallback = os.path.abspath(
+        os.path.join(MUSIC_DIR, "sail_beat.mp3")
+    )
+
+    if os.path.exists(fallback):
+        if has_audio_stream(fallback):
+            print(f"[AUDIO TANLANDI]: {fallback}")
+            return fallback
+
+        print("[AUDIO]: Eski audio fayl yaroqsiz. O'chirilmoqda...")
+        os.remove(fallback)
+
+    print("[AUDIO]: YouTube'dan musiqa yuklanmoqda...")
+
+    subprocess.run(
+        [
             "yt-dlp",
-            "-x",
+            "--no-playlist",
+            "--extract-audio",
             "--audio-format", "mp3",
             "--audio-quality", "0",
-            "-o", os.path.join(MUSIC_DIR, "sail_beat.%(ext)s"),
+            "--force-overwrites",
+            "-o", fallback,
             YOUTUBE_AUDIO_URL,
-        ], check=True)
-    except Exception as e:
-        print(f"[XATO]: {e}")
+        ],
+        check=True,
+    )
 
-    if os.path.exists(fallback) and has_audio_stream(fallback):
-        print(f"[AUDIO TAYYORLANDI]: {fallback}")
-        return os.path.abspath(fallback)
+    if not has_audio_stream(fallback):
+        raise RuntimeError(
+            f"Yuklangan audio faylda stream topilmadi: {fallback}"
+        )
 
-    raise RuntimeError(f"Audio yuklanmadi: {YOUTUBE_AUDIO_URL}")
-
+    print(f"[AUDIO TAYYOR]: {fallback}")
+    return fallback
 def download_crisp_4k_clip(query, idx):
     file_path = os.path.join(VIDEOS_DIR, f"clip_{idx}.mp4")
     if not PEXELS_API_KEY:
@@ -798,7 +809,7 @@ def build_crisp_synced_short(short_index, spots, audio_path):
     ], check=True)
 
     temp_files = [hook_video]
-    concat_list = f"concat_{short_index}.txt"
+     country_display = f"📌 {spot['country']} {spot['flag']}"
 
     with open(concat_list, "w") as f:
         f.write(f"file '{os.path.abspath(hook_video)}'\n")
@@ -812,15 +823,15 @@ def build_crisp_synced_short(short_index, spots, audio_path):
             country_display = f"📍 {spot['country']} {spot['flag']}"
 
             # Matn uzunligiga qarab ekrandan chiqib ketmaslik uchun shrift o'lchamini moslash
-            font_size = 54 if len(spot["country"]) > 13 else 64
-
-            # Markazda chiroyli qora yarim-shaffof karta va soya
-            card_filter = (
-                f"drawtext=text='{country_display}':"
-                f"fontcolor=white:fontsize={font_size}:x=(w-text_w)/2:y=(h-text_h)/2:"
-                "box=1:boxcolor=black@0.7:boxborderw=30:"
-                "shadowcolor=black@0.9:shadowx=6:shadowy=6"
-            )
+              font_size = 72 if len(spot["country"]) <= 8 else 56
+          card_filter = (
+             f"drawtext=text='{country_display}':"
+              f"fontcolor=white:fontsize={font_size}:"
+                "x=(w-text_w)/2:y=(h-text_h)/2:"
+                 "box=1:boxcolor=black@0.75:boxborderw=24:"
+                "shadowcolor=black@0.95:shadowx=5:shadowy=5"
+           )
+            
             subprocess.run([
                 "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=0.8:r=30",
                 "-vf", card_filter,
