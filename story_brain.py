@@ -1,328 +1,238 @@
 import os
 import json
-import time
-import re
 import random
 import requests
 
-REQUEST_TIMEOUT = 30
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+HISTORY_FILE = "history.json"
 
-def extract_valid_json(text):
-    start = text.find("{")
-    if start == -1:
-        raise ValueError("Matnda { belgisi topilmadi")
-
-    depth = 0
-    in_string = False
-    escape = False
-
-    for i in range(start, len(text)):
-        char = text[i]
-        if char == '"' and not escape:
-            in_string = not in_string
-        elif char == '\\' and in_string:
-            escape = not escape
-            continue
-
-        if not in_string:
-            if char == '{':
-                depth += 1
-            elif char == '}':
-                depth -= 1
-                if depth == 0:
-                    return text[start:i+1]
-        escape = False
-
-    end = text.rfind("}")
-    if end > start:
-        return text[start:end+1]
-
-    raise ValueError("To'liq JSON bloki topilmadi")
-
-def clean_json_response(raw_text):
-    if not raw_text:
-        raise ValueError("AI bo'sh javob qaytardi.")
-
-    text = str(raw_text).strip()
-    text = re.sub(r"^```json\s*", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"^```\s*", "", text)
-    text = re.sub(r"\s*```$", "", text).strip()
-
-    json_candidate = extract_valid_json(text)
-    data = json.loads(json_candidate)
-
-    if not isinstance(data, dict):
-        raise ValueError("Javob yaroqli JSON obyekti emas.")
-    return data
-
-# ============================================================
-# MATRITSA MA'LUMOTLAR BAZASI
-# ============================================================
-
-LOCATIONS = [
-    "the Challenger Deep inside the Mariana Trench",
-    "the abyssal hydrothermal fracture of the Puerto Rico Trench",
-    "the submerged spacecraft graveyard of Point Nemo",
-    "the magnetic disturbance zone of the Romanche Trench",
-    "the ice-shelf subglacial cavern beneath Lake Vostok",
-    "the volcanic seafloor canyon of the Kuril-Kamchatka Trench",
-    "the declassified nuclear disaster zone of Soviet submarine K-129",
-    "the midnight abyss of the Java Sunda Trench",
-    "the South Sandwich Trench near the Antarctic perimeter",
-    "the unexplored tectonic rift of the Kermadec Trench",
-    "the sunken volcanic plateau of the Bermuda Abyssal Plain",
-    "the methane hydrate fields off the coast of Svalbard",
-    "the Molloy Deep under Arctic ice sheets",
-    "the Yap Trench abyssal fault line",
-    "the Diamantina Fracture Zone in the South Indian Basin",
-    "the Philippine Trench seabed fissure at 34,000 feet",
-    "the Aleutian Trench subduction cavern system",
-    "the submerged ruins of the Yonaguni tectonic shelf",
-    "the dead-zone perimeter of the Baltic Sea Anomaly",
-    "the hydrothermal chimney forest of the Guaymas Basin"
+COUNTRY_REGIONS_DATABASE = [
+    {
+        "country": "Switzerland",
+        "spots": [
+            {
+                "theme": "Lauterbrunnen & Staubbach Waterfalls",
+                "title": "Switzerland – The Valley of 72 Waterfalls (4K)",
+                "description": "Emerald vertical cliffs, misting glacial waterfalls, and quiet wooden chalets. #switzerland #nature #travel",
+                "queries": [
+                    "Lauterbrunnen valley waterfall mist 4k",
+                    "Staubbach falls green cliff aerial",
+                    "Swiss alps wooden village drone 4k",
+                    "Alpine green meadow wildflowers mountains",
+                    "Swiss mountain foggy morning valley",
+                    "Lauterbrunnen river flowing rocky stream"
+                ]
+            },
+            {
+                "theme": "Matterhorn Peak & Zermatt Glaciers",
+                "title": "Switzerland – Whispers of the Matterhorn (4K)",
+                "description": "Iconic sharp rocky peaks, crystalline alpine reflections, and mountain railways. #matterhorn #switzerland #alps",
+                "queries": [
+                    "Matterhorn reflection lake Riffelsee 4k",
+                    "Zermatt glacier mountain peak cinematic",
+                    "Swiss red train snow mountains pass",
+                    "Gornergrat panoramic alps drone 4k",
+                    "Alpine golden hour sunset mountain ridges",
+                    "Misty pine forest swiss high mountains"
+                ]
+            },
+            {
+                "theme": "Lake Oeschinen & Blausee Blue Waters",
+                "title": "Switzerland – The Secret Turquoise Waters (4K)",
+                "description": "Glacial deep turquoise lakes tucked inside massive towering cliff walls. #nature #lakes #aesthetic",
+                "queries": [
+                    "Oeschinensee turquoise lake drone 4k",
+                    "Blausee crystal clear blue water underwater",
+                    "Wooden boat floating turquoise alpine lake",
+                    "Massive vertical limestone cliff lake reflection",
+                    "Swiss pine forest misty lake shore aerial",
+                    "Alpine emerald lagoon cinematic 4k"
+                ]
+            }
+        ]
+    },
+    {
+        "country": "Norway",
+        "spots": [
+            {
+                "theme": "Lofoten Islands & Arctic Beaches",
+                "title": "Norway – Jagged Peaks of the Arctic Sea (4K)",
+                "description": "Dramatic granite walls rising straight out of turquoise Arctic waters. #norway #lofoten #travel",
+                "queries": [
+                    "Lofoten islands Reine drone 4k",
+                    "Hamnoy red fishermen cabins fjord reflection",
+                    "Arctic ocean waves crashing dark rocks slow motion",
+                    "Lofoten misty mountain road aerial 4k",
+                    "Midnight sun norway coastal cliffs",
+                    "Nordic fishing village sea fog morning"
+                ]
+            },
+            {
+                "theme": "Geirangerfjord & Seven Sisters Falls",
+                "title": "Norway – Silence of the Deep Fjords (4K)",
+                "description": "Vertical rock walls carving deep blue waters with endless tumbling waterfalls. #fjords #norway #nature",
+                "queries": [
+                    "Geirangerfjord aerial landscape drone 4k",
+                    "Seven sisters waterfall Norway cliff",
+                    "Deep blue fjord calm water mountain reflection",
+                    "Norwegian fjord viewpoint edge clouds",
+                    "Misty green canyon river Norway rapids",
+                    "Nordic clouds rolling mountain peak fjord"
+                ]
+            }
+        ]
+    },
+    {
+        "country": "Iceland",
+        "spots": [
+            {
+                "theme": "South Coast Black Sand & Skogafoss",
+                "title": "Iceland – Realm of Black Sands and Mist (4K)",
+                "description": "Roaring North Atlantic swells meeting pitch-black volcanic sands and basalt pillars. #iceland #nature",
+                "queries": [
+                    "Reynisfjara black sand beach waves 4k",
+                    "Skogafoss massive waterfall rainbow drone",
+                    "Seljalandsfoss waterfall behind water stream",
+                    "Dyrholaey sea arch cliff aerial 4k",
+                    "Basalt columns cave ocean cinematic",
+                    "Moody misty volcanic coastline slow motion"
+                ]
+            },
+            {
+                "theme": "Glacial Lagoons & Mossy Canyons",
+                "title": "Iceland – Floating Ice and Emerald Chasms (4K)",
+                "description": "Luminous blue icebergs drifting silently towards black volcanic shores. #iceland #glacier #earth",
+                "queries": [
+                    "Jokulsarlon glacier lagoon floating ice 4k",
+                    "Diamond beach clear ice black sand waves",
+                    "Fjadrarargljufur green canyon river drone",
+                    "Iceland green moss lava field aerial",
+                    "Vatnajokull glacier blue ice cave cinematic",
+                    "Iceland volcanic braided river patterns 4k"
+                ]
+            }
+        ]
+    },
+    {
+        "country": "Japan",
+        "spots": [
+            {
+                "theme": "Kyoto Bamboo Groves & Shrines",
+                "title": "Japan – Sacred Groves and Timeless Shinto (4K)",
+                "description": "Whispering green bamboo forests and serene ancient temple gardens. #japan #aesthetic #peaceful",
+                "queries": [
+                    "Arashiyama bamboo grove path sunbeams 4k",
+                    "Kyoto wooden temple rain zen garden",
+                    "Japanese garden koi pond clear water",
+                    "Misty mossy forest stone lantern shrine",
+                    "Fushimi Inari red torii gates path forest",
+                    "Bamboo water fountain garden slow motion"
+                ]
+            },
+            {
+                "theme": "Mount Fuji & Five Mirror Lakes",
+                "title": "Japan – The Serene Spirit of Mount Fuji (4K)",
+                "description": "Pristine reflections of Mount Fuji's snow peak in silent morning mountain lakes. #fuji #japan #nature",
+                "queries": [
+                    "Mount Fuji sunrise reflection lake 4k drone",
+                    "Chureito pagoda view Mount Fuji aerial",
+                    "Lake Kawaguchiko misty morning landscape 4k",
+                    "Cherry blossoms falling near mountain lake shore",
+                    "Mount Fuji dramatic clouds rolling over peak",
+                    "Pine trees misty mountain lake sunrise Japan"
+                ]
+            }
+        ]
+    }
 ]
 
-VESSELS = [
-    "US Navy Nuclear Submarine SSN-711",
-    "Deep-sea Research Bathyscaphe Proteus-IV",
-    "Classified NATO Sonar Surveillance Platform Titan-Echo",
-    "Autonomous Abyssal Glider Drone Deep-Scan 9",
-    "Submersible Excavation Platform Erebus-3",
-    "US Naval Oceanographic Vessel Pathfinder Delta",
-    "Soviet-era Titanium Submersible Mir-Omega",
-    "Deep Trench Reconnaissance Sub Pioneer-7",
-    "Classified DARPA Undersea Habitat Station Alpha-Null",
-    "Heavy Seafloor Drilling Crawler Behemoth-2"
-]
-
-CREATURES = [
-    "an armored serpent-like leviathan spanning over two hundred feet",
-    "a colossal ancient cephalopod with bioluminescent crimson eyes",
-    "a blind abyssal apex predator with needle-sharp titanium-crushing teeth",
-    "a bio-metallic siphonophore entity radiating sonic EMP pulses",
-    "a burrowing tectonic worm carving paths through volcanic magma veins",
-    "a translucent chitin-plated horror with razor tentacles",
-    "an ancient deep-ocean leviathan sleeping in hydrothermal vents",
-    "a parasitic abyssal organism capable of fusing with submarine electronics",
-    "a gargantuan abyssal angler with bioluminescent hypnotic lures",
-    "a segmented armored horror moving at fifty knots along the seafloor"
-]
-
-EVENTS = [
-    "hull pressure gauges spiked forty percent beyond titanium crush limits",
-    "the main propulsion shafts were seized by dense bioluminescent coils",
-    "a sustained 14-hertz biological shockwave shattered the forward observation dome",
-    "external quartz floodlights revealed massive claw scars tearing the outer plating",
-    "all navigation compasses spun erratically before navigation telemetry went black",
-    "hydrophones recorded acoustic rhythmic clicks resembling a massive hunting lung",
-    "radiation warning systems activated as the sea temperature spiked fifty degrees",
-    "the emergency ballast tanks were severed from outside by razor-sharp mandibles"
-]
-
-CLIMAXES = [
-    "When maximum emergency spotlights ignited, the entire trench floor began moving upward.",
-    "A final distorted voice transmission confirmed: 'It is not an anomaly... it is hunting our engines.'",
-    "The rescue submersible discovered only shredded hull sections covered in acid residue.",
-    "The emergency transponder signal abruptly descended into the earth crust at eighty knots.",
-    "Sonar feeds caught the outline of an eye twice the size of the submarine hull opening in the dark.",
-    "The black box recording terminated as thousands of glowing tendrils encircled the control room."
-]
-
-def build_prompt(mode, winning_theme, past_titles=None, past_hooks=None, episode_num=1):
-    past_titles_str = "\n- ".join(past_titles[-30:]) if past_titles else "None"
-    past_hooks_str = "\n- ".join(past_hooks[-30:]) if past_hooks else "None"
-
-    user_cfg_path = os.path.join(os.path.dirname(__file__), "user_instructions.json")
-    user_guide = ""
-    if os.path.exists(user_cfg_path):
+def load_history():
+    if os.path.exists(HISTORY_FILE):
         try:
-            with open(user_cfg_path, "r", encoding="utf-8") as f:
-                u_data = json.load(f)
-                custom_req = u_data.get("custom_prompt", "")
-                focus_target = u_data.get("target_focus", "")
-                prohibited = u_data.get("prohibited_topics", "")
-                horror_lvl = u_data.get("horror_level", "")
-                user_guide = (
-                    f"\nCREATOR SPECIAL OVERRIDE INSTRUCTIONS:\n"
-                    f"- Main Theme Focus: {focus_target}\n"
-                    f"- Custom Direction: {custom_req}\n"
-                    f"- Horror Atmosphere: {horror_lvl}\n"
-                    f"- FORBIDDEN ELEMENTS (STRICTLY AVOID): {prohibited}\n"
-                )
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, list) else []
+        except Exception:
+            return []
+    return []
+
+def save_history(entry):
+    history = load_history()
+    history.append(entry)
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history, f, indent=4, ensure_ascii=False)
+
+def get_daily_content_plan():
+    history = load_history()
+    
+    last_country = history[-1].get("country", "") if history else ""
+    used_themes = [h.get("theme", "") for h in history if isinstance(h, dict) and "theme" in h]
+    used_themes_str = ", ".join(used_themes[-30:]) if used_themes else "None"
+
+    # Ketma-ket bitta davlat tushmasligi uchun davlatni almashtirish
+    available_countries = [c for c in COUNTRY_REGIONS_DATABASE if c["country"] != last_country]
+    chosen_country_data = random.choice(available_countries if available_countries else COUNTRY_REGIONS_DATABASE)
+    country_name = chosen_country_data["country"]
+
+    # Agar GEMINI_API_KEY bo'lsa, o'sha davlatning mutlaqo yangi joyini AI topadi
+    if GEMINI_API_KEY:
+        prompt = f"""
+You are an elite cinematic nature filmmaker.
+Generate a video plan for the country: "{country_name}".
+
+STRICT REQUIREMENT:
+Do NOT repeat any of these specific places or themes: [{used_themes_str}].
+Find a COMPLETELY DIFFERENT region, lake, waterfall, valley, or national park inside {country_name}.
+
+Generate 6 very specific visual queries for Pexels 4K landscape footage.
+
+Return ONLY a valid raw JSON object (no markdown, no backticks):
+{{
+    "country": "{country_name}",
+    "theme": "Specific new place name or region",
+    "title": "US Audience Click-Worthy 4K YouTube Title",
+    "description": "Poetic 2-sentence description with top hashtags",
+    "queries": [
+        "precise landscape query 1 4k",
+        "water/reflection/waterfall query 2 4k",
+        "misty mountain/drone query 3 4k",
+        "wide epic nature view 4 4k",
+        "dramatic lighting golden hour 5 4k",
+        "peaceful aesthetic nature detail 6 4k"
+    ]
+}}
+"""
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        headers = {"Content-Type": "application/json"}
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        try:
+            res = requests.post(url, headers=headers, json=payload, timeout=25)
+            raw = res.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            if raw.startswith("```json"): raw = raw[7:]
+            if raw.startswith("```"): raw = raw[3:]
+            if raw.endswith("```"): raw = raw[:-3]
+            plan = json.loads(raw.strip())
+            save_history({"country": plan["country"], "theme": plan["theme"], "title": plan["title"]})
+            print(f"[AI TANLOV]: {plan['country']} -> {plan['theme']}")
+            return plan
         except Exception:
             pass
 
-    loc = random.choice(LOCATIONS)
-    vessel = random.choice(VESSELS)
-    creature = random.choice(CREATURES)
-    evt = random.choice(EVENTS)
+    # Zaxira bazadan hali ishlatilmagan yangi lokatsiyani tanlash
+    spots = chosen_country_data["spots"]
+    unused_spots = [s for s in spots if s["theme"] not in used_themes]
+    selected_spot = random.choice(unused_spots) if unused_spots else random.choice(spots)
 
-    target_words = 120 if mode == "shorts" else (400 if mode == "long_3min" else 520)
-    target_scenes = 12 if mode == "shorts" else (36 if mode == "long_3min" else 48)
-    aspect = "16:9" if mode in ["long_3min", "series_4min", "post"] else "9:16"
-
-    return f"""
-You are a premier documentary filmmaker creating an elite deep-sea naval mystery.
-Write a 100% UNIQUE narrative based on:
-- Location: {loc}
-- Vessel: {vessel}
-- Incident: {evt}
-- Entity: {creature}
-{user_guide}
-CRITICAL RULES (ABSOLUTE ZERO REPETITION):
-1. Never start with "At 36,000 feet" or generic phrases.
-2. Begin immediately with military radio distress, timestamped logs, or anomalous telemetry.
-3. FORBIDDEN TITLES:
-{past_titles_str}
-4. FORBIDDEN HOOKS:
-{past_hooks_str}
-5. Exact spoken script: ~{target_words} words.
-6. EXACTLY {target_scenes} scenes with spoken lines and vivid prompts.
-
-JSON SCHEMA (Return valid JSON only):
-{{
-  "title": "Shocking High-CTR Title #Shorts",
-  "hook": "Unforgettable first sentence",
-  "script": "Full narrative script...",
-  "scenes": [
-    {{"text": "Spoken line", "prompt": "{aspect} photorealistic 8k terrifying {creature} attacking {vessel} in dark abyss, diver floodlights, Unreal Engine 5"}}
-  ]
-}}
-"""
-
-def generate_offline_backup_story(mode):
-    loc = random.choice(LOCATIONS)
-    vessel = random.choice(VESSELS)
-    creature = random.choice(CREATURES)
-    evt = random.choice(EVENTS)
-    climax = random.choice(CLIMAXES)
-    target_count = 12 if mode == "shorts" else (36 if mode == "long_3min" else 48)
-    aspect = "16:9" if mode in ["long_3min", "series_4min", "post"] else "9:16"
-
-    code_id = random.randint(100, 999)
-    title = f"CLASSIFIED NAVAL LOG: The {vessel.split()[-1]} Incident #{code_id} #Shorts"
-    hook = f"Military telemetry confirmed that {vessel} was dragged into {loc}."
-    
-    sentences = [
-        f"Official naval records strictly classified the final mission of {vessel}.",
-        f"Deep within {loc}, automated hull hydrophones detected an impossible frequency.",
-        f"Without warning, {evt}.",
-        "Engine telemetry dropped to zero as the submarine drifted into the trench depths.",
-        "External quartz floodlights penetrated the pitch-black void of the abyss.",
-        f"The crew witnessed {creature} moving silently beneath the titanium hull.",
-        "A biological shockwave echoed through the pressure hull, triggering emergency protocols.",
-        "Deep ocean ballast tanks failed to respond as hydraulic pressure vanished.",
-        "Sonar screens were blinded by massive biological interference patterns.",
-        climax,
-        "No distress buoy ever surfaced, and rescue teams encountered absolute silence.",
-        "Decades later, oceanographers still refuse to broadcast the retrieved black box audio."
-    ]
-
-    scenes = []
-    for i in range(target_count):
-        txt = sentences[i % len(sentences)]
-        scenes.append({
-            "text": txt,
-            "prompt": f"{aspect} photorealistic 8k terrifying deep sea mystery, {creature}, {vessel}, volumetric diver floodlights, dark oceanic abyss, cinematic, Unreal Engine 5"
-        })
-
-    return {
-        "title": title,
-        "hook": hook,
-        "script": " ".join(sentences),
-        "scenes": scenes
+    plan = {
+        "country": country_name,
+        "theme": selected_spot["theme"],
+        "title": selected_spot["title"],
+        "description": selected_spot["description"],
+        "queries": selected_spot["queries"]
     }
+    save_history({"country": plan["country"], "theme": plan["theme"], "title": plan["title"]})
+    print(f"[ZAXIRA TANLOV]: {country_name} -> {plan['theme']}")
+    return plan
 
-def validate_story(data, mode):
-    if not isinstance(data, dict):
-        raise ValueError("Natija JSON emas.")
-
-    title_val = data.get("title") or data.get("video_title") or f"THE ABYSS ANOMALY #{random.randint(1000, 99999)} #Shorts"
-    data["title"] = str(title_val)
-
-    script_val = data.get("script") or data.get("narration") or data.get("story")
-    if not script_val:
-        raise ValueError("Script topilmadi.")
-    data["script"] = str(script_val)
-
-    hook_val = data.get("hook") or data["script"].split(".")[0]
-    data["hook"] = str(hook_val)
-
-    scenes = data.get("scenes") or data.get("shots") or []
-    target_count = 12 if mode == "shorts" else (36 if mode == "long_3min" else 48)
-    aspect = "16:9" if mode in ["long_3min", "series_4min", "post"] else "9:16"
-
-    if not isinstance(scenes, list) or len(scenes) == 0:
-        sentences = [s.strip() for s in data["script"].split(".") if len(s.strip()) > 3]
-        scenes = []
-        for i in range(target_count):
-            txt = sentences[i % len(sentences)] if sentences else "The seismic signals accelerated deeper."
-            scenes.append({
-                "text": txt,
-                "prompt": f"{aspect} photorealistic 8k colossal deep sea leviathan mouth opening in pitch black ocean trench, volumetric headlights, Unreal Engine 5"
-            })
-
-    for i, sc in enumerate(scenes):
-        if isinstance(sc, dict):
-            sc.setdefault("text", "The hydrophone sensors continued pulsing.")
-            p = sc.get("prompt", "")
-            if len(p) < 25 or "ocean" not in p.lower():
-                sc["prompt"] = f"{aspect} photorealistic 8k terrifying deep ocean monster emerging from abyssal darkness, diver flashlight beam, Unreal Engine 5"
-
-    data["scenes"] = scenes
-    return data
-
-# ============================================================
-# OCHIQ VA BEPUL AI MOTORLARI (TO'G'RILANGAN)
-# ============================================================
-
-def fetch_internet_ai(prompt):
-    models = ["openai", "mistral", "qwen"]
-    
-    for model in models:
-        try:
-            url = "[https://text.pollinations.ai/openai/chat/completions](https://text.pollinations.ai/openai/chat/completions)"
-            payload = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": "You are a professional mystery scriptwriter. Return only pure raw JSON matching schema."},
-                    {"role": "user", "content": prompt}
-                ],
-                "response_format": {"type": "json_object"}
-            }
-            headers = {"Content-Type": "application/json"}
-            r = requests.post(url, json=payload, headers=headers, timeout=20)
-            if r.status_code == 200:
-                res_data = r.json()
-                if "choices" in res_data and len(res_data["choices"]) > 0:
-                    content = res_data["choices"][0].get("message", {}).get("content", "")
-                    if content:
-                        return clean_json_response(content)
-        except Exception:
-            continue
-
-    # Zaxira oddiy GET so'rovi
-    try:
-        clean_prompt = urllib.parse.quote(prompt[:800])
-        get_url = f"[https://text.pollinations.ai/](https://text.pollinations.ai/){clean_prompt}?json=true"
-        res = requests.get(get_url, timeout=20)
-        if res.status_code == 200 and res.text.strip():
-            return clean_json_response(res.text)
-    except Exception:
-        pass
-
-    raise RuntimeError("Online AI manbalari javob bermadi.")
-
-def get_unique_story(mode, winning_theme, past_titles=None, past_hooks=None, episode_num=1):
-    prompt = build_prompt(mode, winning_theme, past_titles, past_hooks, episode_num)
-    for attempt in range(2):
-        try:
-            raw_data = fetch_internet_ai(prompt)
-            validated = validate_story(raw_data, mode)
-            return validated
-        except Exception:
-            time.sleep(1)
-            continue
-            
-    print("⚠️ Online AI band, avtomatik zaxira generatori ishga tushirildi...")
-    return generate_offline_backup_story(mode)
+if __name__ == "__main__":
+    print(json.dumps(get_daily_content_plan(), indent=2))
