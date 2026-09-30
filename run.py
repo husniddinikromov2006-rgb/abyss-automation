@@ -1,439 +1,138 @@
 import os
-import sys
-import json
-import time
-import random
-import asyncio
-import argparse
-import urllib.parse
-import shutil
-import ssl
-from pathlib import Path
+import glob
 import requests
+import subprocess
+from story_brain import get_daily_content_plan
 
-import PIL.Image
-from PIL import ImageDraw, ImageFont
-if not hasattr(PIL.Image, 'ANTIALIAS'):
-    if hasattr(PIL.Image, 'Resampling'):
-        PIL.Image.ANTIALIAS = PIL.Image.Resampling.LANCZOS
-    else:
-        PIL.Image.ANTIALIAS = PIL.Image.LANCZOS
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
+VIDEOS_DIR = "videos"
+OUTPUT_DIR = "output"
+MUSIC_DIR = "music"
 
-import numpy as np
-import edge_tts
-from moviepy.editor import (
-    ImageClip,
-    AudioFileClip,
-    concatenate_videoclips,
-    AudioClip,
-    CompositeAudioClip,
-    CompositeVideoClip,
-    ColorClip
-)
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from googleapiclient.errors import HttpError
+os.makedirs(VIDEOS_DIR, exist_ok=True)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(MUSIC_DIR, exist_ok=True)
 
-from story_brain import get_unique_story
+def download_footage(queries):
+    headers = {"Authorization": PEXELS_API_KEY} if PEXELS_API_KEY else {}
+    downloaded = []
+    print("\n--- 1. Pexels'dan 4K kadrlar olinmoqda ---")
 
-BASE_DIR = Path(__file__).resolve().parent
-HISTORY_FILE = BASE_DIR / "history.json"
-OUT_DIR = BASE_DIR / "media_workspace"
-OUT_DIR.mkdir(parents=True, exist_ok=True)
-
-VOICE = "en-US-ChristopherNeural"
-
-def get_youtube_service():
-    token_data = os.environ.get("YOUTUBE_TOKEN_JSON")
-    if token_data:
-        info = json.loads(token_data)
-        creds = Credentials.from_authorized_user_info(info)
-    elif (BASE_DIR / "token.json").exists():
-        creds = Credentials.from_authorized_user_file(str(BASE_DIR / "token.json"))
-    else:
-        raise FileNotFoundError("YOUTUBE_TOKEN_JSON topilmadi.")
-
-    if creds and creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-
-    return build("youtube", "v3", credentials=creds)
-
-def load_history():
-    if not HISTORY_FILE.exists():
-        return {
-            "uploaded_videos": [],
-            "past_titles": [],
-            "past_hooks": [],
-            "best_theme": "sunken nuclear submarine breach",
-            "series_episode": 1
-        }
-    try:
-        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        data.setdefault("uploaded_videos", [])
-        data.setdefault("past_titles", [])
-        data.setdefault("past_hooks", [])
-        data.setdefault("best_theme", "sunken nuclear submarine breach")
-        data.setdefault("series_episode", 1)
-        return data
-    except Exception:
-        return {
-            "uploaded_videos": [],
-            "past_titles": [],
-            "past_hooks": [],
-            "best_theme": "sunken nuclear submarine breach",
-            "series_episode": 1
-        }
-
-def save_history(history):
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(history, f, indent=2, ensure_ascii=False)
-
-def analyze_channel_performance(youtube, history):
-    try:
-        req = youtube.channels().list(part="contentDetails", mine=True)
-        res = req.execute()
-        uploads_playlist = res["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
-
-        pl_req = youtube.playlistItems().list(part="snippet", playlistId=uploads_playlist, maxResults=15)
-        pl_res = pl_req.execute()
-        video_ids = [item["snippet"]["resourceId"]["videoId"] for item in pl_res.get("items", [])]
-
-        if not video_ids:
-            return history
-
-        v_req = youtube.videos().list(part="snippet,statistics", id=",".join(video_ids))
-        v_res = v_req.execute()
-
-        best_score = -1
-        winning_title = ""
-
-        for item in v_res.get("items", []):
-            stats = item.get("statistics", {})
-            views = int(stats.get("viewCount", 0))
-            likes = int(stats.get("likeCount", 0))
-            score = views + (likes * 10)
-            title = item.get("snippet", {}).get("title", "")
-
-            if title and title not in history["past_titles"]:
-                history["past_titles"].append(title)
-
-            if score > best_score:
-                best_score = score
-                winning_title = title
-
-        if winning_title:
-            history["best_theme"] = f"Audience engagement theme: {winning_title}"
-            print(f"📊 KANAL TAHLILI: Eng muvaffaqiyatli mavzu -> {winning_title}")
-
-    except Exception as e:
-        print(f"⚠️ Kanal tahlili ogohlantirishi: {e}")
-
-    return history
-
-def download_ai_image(prompt, out_path, width, height):
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    clean_p = prompt.replace("9:16", "").replace("16:9", "").strip()
-    encoded = urllib.parse.quote(clean_p)
-    seed = random.randint(100, 999999)
-
-    image_sources = [
-        f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&seed={seed}&model=flux&nologo=true",
-        f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&seed={seed}&model=turbo&nologo=true",
-        f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&seed={seed}&nologo=true",
-        f"https://picsum.photos/{width}/{height}"
-    ]
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-
-    for url in image_sources:
-        for _ in range(2):
-            try:
-                r = requests.get(url, headers=headers, timeout=25)
-                if r.status_code == 200 and len(r.content) > 15000:
-                    with open(str(out_path), "wb") as f:
-                        f.write(r.content)
-                    with PIL.Image.open(str(out_path)) as test_img:
-                        test_img.verify()
-                    return True
-            except Exception:
-                time.sleep(1)
-
-    # Gradient zaxira
-    img = PIL.Image.new("RGB", (width, height), (5, 12, 28))
-    draw = ImageDraw.Draw(img)
-    for y in range(0, height, 10):
-        c = int(40 * (y / height))
-        draw.line([(0, y), (width, y)], fill=(8 + c, 18 + c, 38 + c), width=10)
-    for _ in range(30):
-        rx, ry = random.randint(0, width), random.randint(0, height)
-        draw.ellipse([rx, ry, rx+4, ry+4], fill=(120, 200, 255))
-    img.save(str(out_path), "JPEG")
-    return True
-
-def make_horror_soundscape(duration):
-    sample_rate = 44100
-    def make_frame(t):
-        heartbeat = np.sin(2 * np.pi * 55.0 * t) * np.maximum(0, np.sin(2 * np.pi * 1.5 * t)) ** 8 * 0.55
-        drone = np.sin(2 * np.pi * 40.0 * t) * 0.35 + np.sin(2 * np.pi * 60.0 * t) * 0.25
-        screech = np.sin(2 * np.pi * 140.0 * t + np.sin(2 * np.pi * 3.5 * t)) * 0.15
-        alarm = np.sin(2 * np.pi * 440.0 * t) * np.maximum(0, np.sin(2 * np.pi * 1.2 * t)) ** 14 * 0.22
-        audio = (heartbeat + drone + screech + alarm) * 0.30
-        return np.vstack((audio, audio)).T
-    return AudioClip(make_frame, duration=duration, fps=sample_rate)
-
-async def generate_voice(text, filename):
-    communicate = edge_tts.Communicate(text=text, voice=VOICE, rate="+3%", pitch="-2Hz")
-    await communicate.save(str(filename))
-
-def create_cinematic_clip(image_path, duration, target_w, target_h):
-    clip = ImageClip(str(image_path)).set_duration(duration)
-    img_w, img_h = clip.size
-    target_ratio = target_w / target_h
-    current_ratio = img_w / img_h
-
-    if current_ratio > target_ratio:
-        new_w = int(img_h * target_ratio)
-        clip = clip.crop(x1=int((img_w - new_w) / 2), y1=0, x2=int((img_w + new_w) / 2), y2=img_h)
-    else:
-        new_h = int(img_w / target_ratio)
-        clip = clip.crop(x1=0, y1=int((img_h - new_h) / 2), x2=img_w, y2=int((img_h + new_h) / 2))
-
-    clip = clip.resize((target_w, target_h))
-    zoomed = clip.resize(lambda t: 1.0 + 0.08 * (t / duration))
-    return zoomed.set_duration(duration)
-
-def create_subtitle_clips(scenes, target_w, target_h, is_horizontal=False):
-    sub_clips = []
-    temp_imgs = []
-    y_pos = int(target_h * 0.82) if is_horizontal else int(target_h * 0.72)
-    font_size = int(target_w * 0.04) if is_horizontal else int(target_w * 0.065)
-    max_line_len = 38 if is_horizontal else 18
-
-    try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
-    except Exception:
-        font = ImageFont.load_default()
-
-    cur_time = 0.0
-    for i, sc in enumerate(scenes):
-        dur = sc["duration"]
-        text = sc.get("text", "")
-        if not text:
-            cur_time += dur
+    for idx, query in enumerate(queries):
+        file_path = os.path.join(VIDEOS_DIR, f"clip_{idx}.mp4")
+        if not PEXELS_API_KEY:
+            print("[XATO]: PEXELS_API_KEY topilmadi!")
             continue
 
-        img = PIL.Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(img)
-
-        words = text.split()
-        lines = []
-        cur_l = []
-        for w in words:
-            cur_l.append(w)
-            if len(" ".join(cur_l)) > max_line_len:
-                lines.append(" ".join(cur_l))
-                cur_l = []
-        if cur_l:
-            lines.append(" ".join(cur_l))
-        display_text = "\n".join(lines[:2])
-
-        for ox, oy in [(-4,-4), (4,-4), (-4,4), (4,4), (-4,0), (4,0), (0,-4), (0,4)]:
-            draw.text((target_w // 2 + ox, y_pos + oy), display_text, font=font, fill=(0, 0, 0, 255), anchor="mm", align="center")
-        draw.text((target_w // 2, y_pos), display_text, font=font, fill=(255, 235, 59, 255), anchor="mm", align="center")
-
-        path = OUT_DIR / f"sub_{i}_{int(time.time()*1000)}.png"
-        img.save(str(path))
-        temp_imgs.append(path)
-
-        clip = ImageClip(str(path)).set_start(cur_time).set_duration(dur)
-        sub_clips.append(clip)
-        cur_time += dur
-
-    return sub_clips, temp_imgs
-
-def render_dynamic_movie(scenes, voice_file, output_file, total_duration, target_w, target_h, is_horizontal=False):
-    if not scenes:
-        raise RuntimeError("Render qilish uchun scenes topilmadi!")
-
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    voice_audio = AudioFileClip(str(voice_file))
-    horror_audio = make_horror_soundscape(total_duration)
-    final_audio = CompositeAudioClip([voice_audio, horror_audio]).subclip(0, total_duration)
-
-    clips = []
-    temp_files = []
-
-    try:
-        for i, sc in enumerate(scenes):
-            img_path = OUT_DIR / f"frame_{i}.jpg"
-            temp_files.append(img_path)
-            print(f"🎬 Kadr chizilmoqda va yuklanmoqda ({i+1}/{len(scenes)})...")
-            download_ai_image(sc["prompt"], img_path, target_w, target_h)
-            clip = create_cinematic_clip(img_path, sc["duration"], target_w, target_h)
-            clips.append(clip)
-
-        base_video = concatenate_videoclips(clips, method="compose").subclip(0, total_duration)
-        red_flash = ColorClip(size=(target_w, target_h), color=[255, 0, 0]).set_duration(0.18).set_opacity(0.35)
-        sub_clips, sub_imgs = create_subtitle_clips(scenes, target_w, target_h, is_horizontal)
-        temp_files.extend(sub_imgs)
-
-        all_layers = [base_video, red_flash.set_start(2.5)] + sub_clips
-        final_video = CompositeVideoClip(all_layers).set_duration(total_duration).set_audio(final_audio)
-
-        final_video.write_videofile(
-            str(output_file),
-            codec="libx264",
-            audio_codec="aac",
-            fps=24,
-            preset="ultrafast",
-            threads=4,
-            verbose=False,
-            logger=None,
-        )
-
-        voice_audio.close()
-        horror_audio.close()
-        final_video.close()
-        for c in clips:
-            c.close()
-    finally:
-        for f in temp_files:
-            try:
-                if f.exists():
-                    f.unlink()
-            except Exception:
-                pass
-
-def post_community_update(youtube, story):
-    text = story.get("text", "Declassified expedition log update...")
-    print(f"\n📢 COMMUNITY POST YARATILDI:\n{text}")
-
-def upload_video_to_youtube(youtube, video_path, title, description, tags):
-    """Xatoliklarga chidamli, bo'lib-bo'lib yuklovchi funksiya"""
-    body = {
-        "snippet": {"title": title, "description": description, "tags": tags, "categoryId": "28"},
-        "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False},
-    }
-    
-    # 5MB bo'laklarga bo'lib yuklash (uzilishlarni oldini oladi)
-    media = MediaFileUpload(
-        str(video_path),
-        chunksize=5 * 1024 * 1024,
-        resumable=True,
-        mimetype="video/mp4"
-    )
-    
-    insert_request = youtube.videos().insert(
-        part="snippet,status",
-        body=body,
-        media_body=media
-    )
-
-    response = None
-    max_retries = 5
-    retry = 0
-
-    print("📤 YouTube ga yuklash boshlandi...")
-    while response is None:
         try:
-            status, response = insert_request.next_chunk()
-            if status:
-                print(f"⏳ Yuklanish jarayoni: {int(status.progress() * 100)}%")
-        except (ssl.SSLEOFError, Exception) as e:
-            retry += 1
-            print(f"⚠️ Tarmoq uzilishi yuz berdi: {e}")
-            if retry > max_retries:
-                raise RuntimeError("5 martadan ortiq urinishda ham ulanib bo'lmadi.")
-            wait_time = retry * 5
-            print(f"🔄 {wait_time} soniyadan so'ng qayta uriniladi ({retry}/{max_retries})...")
-            time.sleep(wait_time)
+            url = f"[https://api.pexels.com/videos/search?query=](https://api.pexels.com/videos/search?query=){query}&per_page=5&orientation=landscape"
+            r = requests.get(url, headers=headers, timeout=20).json()
+            videos = r.get("videos", [])
 
-    return response["id"]
+            if not videos:
+                clean_term = query.split()[0] + " nature 4k"
+                url_alt = f"[https://api.pexels.com/videos/search?query=](https://api.pexels.com/videos/search?query=){clean_term}&per_page=3"
+                r = requests.get(url_alt, headers=headers, timeout=20).json()
+                videos = r.get("videos", [])
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["shorts", "long_3min", "series_4min", "post"], default="shorts")
-    args = parser.parse_args()
+            if videos:
+                files = videos[0].get("video_files", [])
+                best = max(files, key=lambda x: (x.get("width", 0), x.get("height", 0)))
+                link = best.get("link")
 
-    youtube = get_youtube_service()
-    history = load_history()
+                resp = requests.get(link, stream=True, timeout=60)
+                with open(file_path, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                        if chunk:
+                            f.write(chunk)
 
-    history = analyze_channel_performance(youtube, history)
+                downloaded.append(file_path)
+                print(f"[YUKLANDI]: {query}")
+        except Exception as e:
+            print(f"[XATO]: {query} yuklanmadi: {e}")
 
-    is_horizontal = args.mode in ["long_3min", "series_4min"]
-    target_w, target_h = (1920, 1080) if is_horizontal else (1080, 1920)
-    current_episode = history.get("series_episode", 1)
+    return downloaded
 
-    story = get_unique_story(
-        winning_theme=history.get("best_theme", "deep sea military disaster"),
-        past_titles=history.get("past_titles", []),
-        past_hooks=history.get("past_hooks", []),
-        mode=args.mode,
-        episode_num=current_episode
-    )
+def resolve_audio():
+    tracks = glob.glob(os.path.join(MUSIC_DIR, "*.mp3"))
+    if tracks:
+        return tracks[0]
 
-    if args.mode == "post":
-        post_community_update(youtube, story)
-        return
+    # Musiqa topilmasa xatolik bermasdan sokin fon audiosi yaratadi
+    silent_audio = os.path.join(MUSIC_DIR, "ambient_silence.mp3")
+    if not os.path.exists(silent_audio):
+        subprocess.run([
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+            "-t", "130", "-q:a", "9", "-acodec", "libmp3lame", silent_audio
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return silent_audio
 
-    title = story.get("title", "CLASSIFIED NAVAL LOG")
-    if args.mode == "shorts" and "#Shorts" not in title:
-        title += " #Shorts"
+def render_long_form(clips, audio, country):
+    print("\n--- 2. 2 Daqiqalik Asosiy Video Render qilinmoqda (16:9) ---")
+    safe_name = country.replace(" ", "_")
+    output_path = os.path.join(OUTPUT_DIR, f"{safe_name}_Cinematic_2Min.mp4")
+    concat_txt = "concat_main.txt"
 
-    script = story.get("script", "")
-    hook = story.get("hook", "")
-    scenes = story.get("scenes", [])
+    # Har biri 5 soniyadan iborat 24 ta kadr = 120 soniya (2 daqiqa)
+    extended = (clips * 10)[:24]
+    with open(concat_txt, "w") as f:
+        for c in extended:
+            f.write(f"file '{os.path.abspath(c)}'\n")
+            f.write("duration 5\n")
 
-    if not isinstance(scenes, list) or len(scenes) == 0:
-        raise RuntimeError("AI javobida scenes topilmadi!")
+    cmd = [
+        "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_txt,
+        "-i", audio, "-t", "120",
+        "-vf", "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080",
+        "-af", "afade=t=out:st=117:d=3",
+        "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "192k",
+        output_path
+    ]
+    subprocess.run(cmd, check=True)
+    if os.path.exists(concat_txt):
+        os.remove(concat_txt)
+    print(f"[TAYYOR]: {output_path}")
 
-    print(f"\n⚡ YARATILAYOTGAN FORMAT: {args.mode.upper()}")
-    print(f"🎬 Video nomi: {title}")
-    print(f"🎯 Hook (0-3s): \"{hook}\"")
+def render_shorts(clips, audio, country):
+    print("\n--- 3. AQSH auditoriyasi uchun 4 ta Shorts yasalmoqda (9:16) ---")
+    safe_name = country.replace(" ", "_")
 
-    voice_path = OUT_DIR / f"{int(time.time())}_voice.mp3"
-    video_path = OUT_DIR / f"{int(time.time())}_final.mp4"
+    for i in range(4):
+        short_path = os.path.join(OUTPUT_DIR, f"{safe_name}_Short_{i+1}.mp4")
+        concat_short = f"concat_short_{i}.txt"
 
-    asyncio.run(generate_voice(script, str(voice_path)))
-    voice_clip = AudioFileClip(str(voice_path))
+        offset = i * 2
+        short_clips = (clips[offset:] + clips[:offset])[:6]
+        with open(concat_short, "w") as f:
+            for c in short_clips:
+                f.write(f"file '{os.path.abspath(c)}'\n")
+                f.write("duration 5\n")
 
-    min_dur = 240.0 if args.mode == "series_4min" else (180.0 if args.mode == "long_3min" else 55.0)
-    total_dur = max(min_dur, voice_clip.duration)
-    voice_clip.close()
-
-    scene_dur = total_dur / len(scenes)
-    for sc in scenes:
-        sc["duration"] = scene_dur
-
-    render_dynamic_movie(scenes, voice_path, video_path, total_dur, target_w, target_h, is_horizontal)
-
-    desc = f"{script}\n\n#DeepSeaHorror #NavalHorror #AbyssSecrets #Declassified #OceanMystery #Documentary"
-    tags = ["Deep sea horror", "US Navy horror", "submarine disaster", "ocean mystery", "abyss documentary", "classified logs"]
-
-    # Xavfsiz yuklash funksiyasini chaqiramiz
-    vid = upload_video_to_youtube(youtube, video_path, title, desc, tags)
-    print(f"🚀 VIDEO MUVAFFAQIYATLI YUKLANDI: https://youtu.be/{vid}")
-
-    history["uploaded_videos"].append(vid)
-    history["past_titles"].append(title)
-    if hook:
-        history["past_hooks"].append(hook)
-    if args.mode == "series_4min":
-        history["series_episode"] = current_episode + 1
-    save_history(history)
-
-    try:
-        shutil.rmtree(str(OUT_DIR))
-        OUT_DIR.mkdir(exist_ok=True)
-    except Exception:
-        pass
+        cmd = [
+            "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_short,
+            "-i", audio, "-t", "30",
+            "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
+            "-af", "afade=t=out:st=28:d=2",
+            "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            short_path
+        ]
+        subprocess.run(cmd, check=True)
+        if os.path.exists(concat_short):
+            os.remove(concat_short)
+        print(f"[TAYYOR SHORT {i+1}]: {short_path}")
 
 if __name__ == "__main__":
-    main()
+    plan = get_daily_content_plan()
+    country = plan.get("country", "Earth")
+    print(f"\nTanlangan joy: {country} | {plan.get('theme', '')}")
+
+    clips = download_footage(plan.get("queries", []))
+    if clips:
+        audio = resolve_audio()
+        render_long_form(clips, audio, country)
+        render_shorts(clips, audio, country)
+        print("\n=== 1 TA ASOSIY 2 DAQIQALIK VIDEO VA 4 TA SHORTS TO'LIQ BITDI ===")
+    else:
+        print("[XATO]: Kadrlar yuklanmadi. PEXELS_API_KEY to'g'riligini tekshiring.")
