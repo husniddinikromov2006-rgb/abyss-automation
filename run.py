@@ -1,6 +1,6 @@
 # ============================================================
 # 🌍 UNREAL PLACES ENGINE — FULL AUTOMATION ENGINE
-# REAL WORLD + HIDDEN GEMS + AI FANTASY + ULTRA 4K & AUDIO
+# AUTO-MUSIC FINDER + GLASS OVERLAY TYPOGRAPHY + ULTRA 4K
 # ============================================================
 
 import os
@@ -8,21 +8,21 @@ import glob
 import random
 import requests
 import subprocess
+
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 VIDEOS_DIR = "videos"
 OUTPUT_DIR = "output"
 MUSIC_DIR = "music"
-YOUTUBE_AUDIO_URL = "https://youtu.be/vwfUyt3YSjQ"
-YOUTUBE_AUDIO_START = "64"
 
-os.makedirs(VIDEOS_DIR, exist_ok=True)
 os.makedirs(VIDEOS_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(MUSIC_DIR, exist_ok=True)
 
+
 # ============================================================
 # 🌎 REAL WORLD LOCATIONS & FANTASY WORLDS POOL
 # ============================================================
+
 UNREAL_PLACES_POOL = [
     # 🇨🇭 SWITZERLAND
     {"country": "SWITZERLAND", "flag": "🇨🇭", "query": "Lauterbrunnen Valley waterfalls Switzerland 4k cinematic"},
@@ -58,7 +58,7 @@ UNREAL_PLACES_POOL = [
     {"country": "ICELAND", "flag": "🇮🇸", "query": "Seljalandsfoss Iceland waterfall 4k"},
     {"country": "ICELAND", "flag": "🇮🇸", "query": "Kirkjufell Iceland northern lights 4k"},
     {"country": "ICELAND", "flag": "🇮🇸", "query": "Jokulsarlon glacier lagoon 4k"},
-    {"country": "ICELAND", "flag": "🇮🇸", "query": "Diamond Beach Iceland ice 4k"},
+    {"country": "ICELAND", "flag": "ICELAND diamond beach ice chunks 4k"},
     {"country": "ICELAND", "flag": "🇮🇸", "query": "Iceland Highlands volcanic landscape 4k"},
     {"country": "ICELAND", "flag": "🇮🇸", "query": "Iceland blue lagoon aerial 4k"},
     {"country": "ICELAND", "flag": "🇮🇸", "query": "Svartifoss Iceland basalt waterfall 4k"},
@@ -394,7 +394,7 @@ UNREAL_PLACES_POOL = [
     {"country": "UZBEKISTAN", "flag": "🇺🇿", "query": "Charvak Lake Uzbekistan mountains 4k"},
     {"country": "UZBEKISTAN", "flag": "🇺🇿", "query": "Zaamin National Park Uzbekistan 4k"},
 
-    # 🏝️️ ISLAND PARADISE
+    # 🏝 ISLAND PARADISE
     {"country": "MALDIVES", "flag": "🇲🇻", "query": "Maldives turquoise islands aerial 4k"},
     {"country": "SEYCHELLES", "flag": "🇸🇨", "query": "Seychelles granite rocks turquoise water 4k"},
     {"country": "MAURITIUS", "flag": "🇲🇺", "query": "Mauritius underwater waterfall illusion 4k"},
@@ -485,284 +485,113 @@ UNREAL_PLACES_POOL = [
     {"country": "COSMIC WORLD", "flag": "🌌", "query": "giant moon above endless ocean cliffs 4k"},
 ]
 
-
 # ============================================================
-# 🎨 CINEMATIC VARIATIONS
+# 🎨 CINEMATIC STYLES & ATMOSPHERES
 # ============================================================
 
 CINEMATIC_STYLES = [
-    "cinematic",
-    "ultra realistic",
-    "photorealistic",
-    "epic aerial drone",
-    "slow cinematic drone",
-    "golden hour",
-    "sunrise",
-    "sunset",
-    "misty morning",
-    "dramatic clouds",
-    "after rain",
-    "foggy atmosphere",
-    "moonlight",
-    "blue hour",
-    "soft sunlight",
-    "volumetric lighting",
-    "8k nature documentary",
-    "travel documentary",
-    "high detail landscape",
+    "cinematic", "ultra realistic", "photorealistic", "epic aerial drone",
+    "slow cinematic drone", "golden hour", "sunrise", "sunset", "misty morning",
+    "dramatic clouds", "after rain", "foggy atmosphere", "moonlight", "blue hour",
+    "soft sunlight", "volumetric lighting", "8k nature documentary",
+    "travel documentary", "high detail landscape"
 ]
-
-
-# ============================================================
-# 🎥 CAMERA VARIATIONS
-# ============================================================
 
 CAMERA_STYLES = [
-    "drone flyover",
-    "slow aerial reveal",
-    "wide establishing shot",
-    "low angle cinematic shot",
-    "high altitude aerial view",
-    "slow forward camera movement",
-    "smooth orbit camera",
-    "mountain reveal",
-    "waterfall reveal",
-    "ocean reveal",
-    "valley reveal",
-    "vertical cinematic push in",
+    "drone flyover", "slow aerial reveal", "wide establishing shot",
+    "low angle cinematic shot", "high altitude aerial view", "slow forward camera movement",
+    "smooth orbit camera", "mountain reveal", "waterfall reveal", "ocean reveal",
+    "valley reveal", "vertical cinematic push in"
 ]
-
-
-# ============================================================
-# 🌦️ ATMOSPHERE
-# ============================================================
 
 ATMOSPHERES = [
-    "soft morning mist",
-    "dramatic clouds",
-    "light fog",
-    "sun rays through clouds",
-    "floating clouds",
-    "fresh rain atmosphere",
-    "crystal clear sky",
-    "golden sunlight",
-    "soft blue atmosphere",
-    "cinematic haze",
-    "volumetric sun rays",
-    "light atmospheric fog",
+    "soft morning mist", "dramatic clouds", "light fog", "sun rays through clouds",
+    "floating clouds", "fresh rain atmosphere", "crystal clear sky", "golden sunlight",
+    "soft blue atmosphere", "cinematic haze", "volumetric sun rays", "light atmospheric fog"
 ]
-
-
-# ============================================================
-# 🔥 RANDOM QUERY ENHANCER
-# ============================================================
 
 def enhance_query(base_query):
     style = random.choice(CINEMATIC_STYLES)
     camera = random.choice(CAMERA_STYLES)
     atmosphere = random.choice(ATMOSPHERES)
-
     return (
-        f"{base_query}, "
-        f"{style}, "
-        f"{camera}, "
-        f"{atmosphere}, "
-        f"ultra detailed, "
-        f"natural colors, "
-        f"high quality, "
-        f"4k"
+        f"{base_query}, {style}, {camera}, {atmosphere}, "
+        f"ultra detailed, natural colors, high quality, 4k"
     )
-
-
-# ============================================================
-# 🎯 GET RANDOM PLACE
-# ============================================================
-
-def get_random_place():
-    place = random.choice(UNREAL_PLACES_POOL)
-
-    return {
-        "country": place["country"],
-        "flag": place["flag"],
-        "query": enhance_query(place["query"]),
-    }
-
-
-# ============================================================
-# 🌍 GET REAL PLACE ONLY
-# ============================================================
-
-def get_real_place():
-    real_places = [
-        x for x in UNREAL_PLACES_POOL
-        if x["country"] not in [
-            "AI WORLD",
-            "ALIEN WORLD",
-            "COSMIC WORLD",
-        ]
-    ]
-
-    place = random.choice(real_places)
-
-    return {
-        "country": place["country"],
-        "flag": place["flag"],
-        "query": enhance_query(place["query"]),
-    }
-
-
-# ============================================================
-# 🤖 GET AI PLACE ONLY
-# ============================================================
-
-def get_ai_place():
-    ai_places = [
-        x for x in UNREAL_PLACES_POOL
-        if x["country"] in [
-            "AI WORLD",
-            "ALIEN WORLD",
-            "COSMIC WORLD",
-        ]
-    ]
-
-    place = random.choice(ai_places)
-
-    return {
-        "country": place["country"],
-        "flag": place["flag"],
-        "query": enhance_query(place["query"]),
-    }
-
-
-# ============================================================
-# 🌎 GET PLACE BY COUNTRY
-# ============================================================
-
-def get_place_by_country(country):
-    matches = [
-        x for x in UNREAL_PLACES_POOL
-        if x["country"].lower() == country.lower()
-    ]
-
-    if not matches:
-        return get_random_place()
-
-    place = random.choice(matches)
-
-    return {
-        "country": place["country"],
-        "flag": place["flag"],
-        "query": enhance_query(place["query"]),
-    }
-
-
-# ============================================================
-# 🔥 GENERATE UNIQUE PLACE
-# ============================================================
 
 _recent_queries = []
 
-
 def get_unique_place():
     global _recent_queries
-
-    max_attempts = 100
-
-    for _ in range(max_attempts):
-        place = get_random_place()
-        query = place["query"]
-
-        if query not in _recent_queries:
-            _recent_queries.append(query)
-
+    for _ in range(100):
+        place = random.choice(UNREAL_PLACES_POOL)
+        enhanced = enhance_query(place["query"])
+        if enhanced not in _recent_queries:
+            _recent_queries.append(enhanced)
             if len(_recent_queries) > 100:
                 _recent_queries.pop(0)
-
-            return place
-
-    return get_random_place()
-
+            return {
+                "country": place["country"],
+                "flag": place["flag"],
+                "query": enhanced
+            }
+    p = random.choice(UNREAL_PLACES_POOL)
+    return {"country": p["country"], "flag": p["flag"], "query": p["query"]}
 
 # ============================================================
-# 🎬 GENERATE VIDEO LOCATION
+# 🎵 AFTOMATIK MUSIQA TOPISH VA O'RNATISH (AUTO-FETCHER)
 # ============================================================
-
-def generate_video_location():
-    place = get_unique_place()
-
-    return {
-        "country": place["country"],
-        "flag": place["flag"],
-        "search_query": place["query"],
-        "display_name": f'{place["flag"]} {place["country"]}',
-    }
-
-
-def has_audio_stream(path):
-    """Faylda haqiqiy audio stream borligini tekshiradi."""
-    if not os.path.isfile(path):
-        return False
-
-    if os.path.getsize(path) == 0:
-        return False
-
-    result = subprocess.run(
-        [
-            "ffprobe",
-            "-v", "error",
-            "-select_streams", "a:0",
-            "-show_entries", "stream=codec_type",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            path,
-        ],
-        capture_output=True,
-        text=True,
-    )
-
-    return result.returncode == 0 and result.stdout.strip() == "audio"
-
 
 def get_audio_file():
-    """YouTube'dan musiqani yuklab, tekshirilgan audio faylni qaytaradi."""
-    fallback = os.path.abspath(
-        os.path.join(MUSIC_DIR, "sail_beat.mp3")
-    )
+    """Faylni topadi, yo'q bo'lsa YouTube yoki zaxiradan avtomat yuklaydi"""
+    tracks = glob.glob("**/*.mp3", recursive=True)
+    for t in tracks:
+        if os.path.getsize(t) > 20000:
+            print(f"[AUDIO TANLANDI]: {t}")
+            return os.path.abspath(t)
 
-    if os.path.exists(fallback):
-        if has_audio_stream(fallback):
-            print(f"[AUDIO TANLANDI]: {fallback}")
-            return fallback
+    target_audio = os.path.join(MUSIC_DIR, "auto_trend_beat.mp3")
+    print("\n--- Repoda audio topilmadi. Avtomat musiqa yuklanmoqda... ---")
 
-        print("[AUDIO]: Eski audio fayl yaroqsiz. O'chirilmoqda...")
-        os.remove(fallback)
+    # 1-usul: Namunaviy video audiosini yt-dlp orqali toza ajratib olish
+    try:
+        url = "https://youtube.com/shorts/EfF97vJdqIQ"
+        cmd = [
+            "yt-dlp", "-x", "--audio-format", "mp3", "--audio-quality", "0",
+            "-o", target_audio, url
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.path.exists(target_audio) and os.path.getsize(target_audio) > 10000:
+            print("[AUDIO MUVAFFAQIYAT]: Trenddagi musiqa to'g'ridan-to'g'ri yuklandi!")
+            return os.path.abspath(target_audio)
+    except Exception as e:
+        print(f"[OGOHLANTIRISH]: yt-dlp yuklay olmadi ({e}), zaxira havola ishlatilmoqda...")
 
-    print("[AUDIO]: YouTube'dan musiqa yuklanmoqda...")
+    # 2-usul: Zaxira serverdan xuddi shu Trap/Bass trekni yuklash
+    try:
+        backup_url = "https://cdn.pixabay.com/download/audio/2022/11/06/audio_c937ecfa86.mp3?filename=trap-future-bass-royalty-free-music-125633.mp3"
+        r = requests.get(backup_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
+        with open(target_audio, "wb") as f:
+            f.write(r.content)
+        print("[AUDIO MUVAFFAQIYAT]: Zaxira audio yuklab olindi!")
+        return os.path.abspath(target_audio)
+    except Exception as e:
+        print(f"[XATO]: Musiqa yuklanmadi: {e}")
+        # Shoshilinch zaxira (jimjitlik bo'lmasligi uchun)
+        subprocess.run([
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=100:duration=60",
+            target_audio
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return os.path.abspath(target_audio)
 
-    subprocess.run(
-        [
-            "yt-dlp",
-            "--no-playlist",
-            "--extract-audio",
-            "--audio-format", "mp3",
-            "--audio-quality", "0",
-            "--force-overwrites",
-            "-o", fallback,
-            YOUTUBE_AUDIO_URL,
-        ],
-        check=True,
-    )
+# ============================================================
+# 🎬 4K YUKLASH VA ULTRA SIFATLI MONTAJ
+# ============================================================
 
-    if not has_audio_stream(fallback):
-        raise RuntimeError(
-            f"Yuklangan audio faylda stream topilmadi: {fallback}"
-        )
-
-    print(f"[AUDIO TAYYOR]: {fallback}")
-    return fallback
 def download_crisp_4k_clip(query, idx):
     file_path = os.path.join(VIDEOS_DIR, f"clip_{idx}.mp4")
     if not PEXELS_API_KEY:
-        print("[XATO]: PEXELS_API_KEY Secrets ichida topilmadi!")
+        print("[XATO]: PEXELS_API_KEY topilmadi!")
         return None
 
     try:
@@ -772,37 +601,34 @@ def download_crisp_4k_clip(query, idx):
         if videos:
             files = videos[0].get("video_files", [])
             best = max(files, key=lambda x: (x.get("width", 0) * x.get("height", 0)))
-            link = best.get("link")
-
-            resp = requests.get(link, stream=True, timeout=60)
+            resp = requests.get(best.get("link"), stream=True, timeout=60)
             with open(file_path, "wb") as f:
                 for chunk in resp.iter_content(chunk_size=1024 * 1024):
                     if chunk:
                         f.write(chunk)
-            print(f"[YUKLANDI - 4K ULTRA]: {query[:45]}...")
+            print(f"[YUKLANDI - 4K]: {query[:40]}...")
             return file_path
     except Exception as e:
-        print(f"[XATO]: {query[:30]} - {e}")
+        print(f"[XATO]: {e}")
     return None
-
 
 def build_crisp_synced_short(short_index, spots, audio_path):
     output_file = os.path.join(OUTPUT_DIR, f"Short_{short_index}_UltraCrisp.mp4")
-    print(f"\n--- Ultra-tiniq Shorts #{short_index} montaj qilinmoqda ---")
+    print(f"\n--- Shorts #{short_index} avtomatik montaj qilinmoqda ---")
 
     # 1. Boshlang'ich Hook (2.2s - 'SAIL' zarbasigacha to'g'ri keladi)
     hook_video = f"hook_{short_index}.mp4"
     hook_text_filter = (
         "drawtext=text='PLACES ON EARTH THAT\\nDON’T FEEL REAL 🤯':"
         "fontcolor=white:fontsize=56:x=(w-text_w)/2:y=(h-text_h)/2:"
-        "line_spacing=24:box=1:boxcolor=black@0.65:boxborderw=25:"
+        "line_spacing=24:box=1:boxcolor=black@0.7:boxborderw=30:"
         "shadowcolor=black@0.9:shadowx=5:shadowy=5"
     )
     subprocess.run([
         "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=2.2:r=30",
         "-vf", hook_text_filter,
         "-c:v", "libx264", "-pix_fmt", "yuv420p", hook_video
-      ], check=True)
+    ], check=True)
 
     temp_files = [hook_video]
     concat_list = f"concat_{short_index}.txt"
@@ -815,19 +641,17 @@ def build_crisp_synced_short(short_index, spots, audio_path):
             if not raw_clip:
                 continue
 
+            # Qora ekranda davlat kartochkasi (0.8s)
             card_video = f"card_{short_index}_{i}.mp4"
             country_display = f"📍 {spot['country']} {spot['flag']}"
-
-            # Matn uzunligiga qarab ekrandan chiqib ketmaslik uchun shrift o'lchamini moslash
-            font_size = 72 if len(spot["country"]) <= 8 else 56
+            card_font_size = 50 if len(spot["country"]) > 13 else 64
+            
             card_filter = (
                 f"drawtext=text='{country_display}':"
-                f"fontcolor=white:fontsize={font_size}:"
-                "x=(w-text_w)/2:y=(h-text_h)/2:"
-                "box=1:boxcolor=black@0.75:boxborderw=24:"
-                "shadowcolor=black@0.95:shadowx=5:shadowy=5"
+                f"fontcolor=white:fontsize={card_font_size}:x=(w-text_w)/2:y=(h-text_h)/2:"
+                "box=1:boxcolor=black@0.75:boxborderw=32:"
+                "shadowcolor=black@0.9:shadowx=6:shadowy=6"
             )
-            
             subprocess.run([
                 "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=0.8:r=30",
                 "-vf", card_filter,
@@ -835,13 +659,20 @@ def build_crisp_synced_short(short_index, spots, audio_path):
             ], check=True)
             temp_files.append(card_video)
 
-            # Ultra-tiniq grafik filtr: unsharp + contrast + saturation (HDR)
+            # VIDEO KADR USTIDA CHIROYLIK MATN (Glassmorphism overlay) + ULTRA 4K FILTR
             proc_clip = f"proc_{short_index}_{i}.mp4"
+            overlay_font_size = 44 if len(spot["country"]) > 13 else 52
+            
+            # Kadrning pastki qismida estetik yarim shaffof zamonaviy panel
             clip_filter = (
                 "scale=1080:1920:force_original_aspect_ratio=increase,"
                 "crop=1080:1920,"
                 "unsharp=5:5:1.2:5:5:0.0,"
-                "eq=contrast=1.14:saturation=1.28:brightness=0.02,fps=30"
+                "eq=contrast=1.14:saturation=1.28:brightness=0.02,"
+                f"drawtext=text='📍 {spot['country']} {spot['flag']}':"
+                f"fontcolor=white:fontsize={overlay_font_size}:x=(w-text_w)/2:y=h-320:"
+                "box=1:boxcolor=black@0.55:boxborderw=24:"
+                "shadowcolor=black@0.85:shadowx=4:shadowy=4,fps=30"
             )
             subprocess.run([
                 "ffmpeg", "-y", "-i", raw_clip, "-t", "3.2",
@@ -861,7 +692,7 @@ def build_crisp_synced_short(short_index, spots, audio_path):
         "-c:v", "libx264", "-pix_fmt", "yuv420p", temp_merged
     ], check=True)
 
-    # OVOZNI TO'G'RI VA 100% BIRIKTIRISH
+    # OVOZNI TO'LIQ VA SOXTASIZ BIRIKTIRISH (-map buyrug'i)
     subprocess.run([
         "ffmpeg", "-y",
         "-i", temp_merged,
@@ -881,9 +712,8 @@ def build_crisp_synced_short(short_index, spots, audio_path):
 
     print(f"[TAYYOR ULTRA HD]: {output_file}")
 
-
 # ============================================================
-# 🚀 ASOSIY ISHGA TUSHIRISH (MAIN)
+# 🚀 MAIN RUN
 # ============================================================
 
 if __name__ == "__main__":
