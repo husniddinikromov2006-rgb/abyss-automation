@@ -2,15 +2,15 @@ name: Scheduled Video Production
 
 on:
   schedule:
-    # 1. Soat 06:00 UZT (01:00 UTC) -> 2 daqiqalik asosiy video
+    # 1. 06:00 UZT (01:00 UTC) -> Asosiy video
     - cron: '0 1 * * *'
-    # 2. Soat 11:00 UZT (06:00 UTC) -> Short 1
+    # 2. 11:00 UZT (06:00 UTC) -> Short 1
     - cron: '0 6 * * *'
-    # 3. Soat 16:00 UZT (11:00 UTC) -> Short 2
+    # 3. 16:00 UZT (11:00 UTC) -> Short 2
     - cron: '0 11 * * *'
-    # 4. Soat 20:00 UZT (15:00 UTC) -> Short 3
+    # 4. 20:00 UZT (15:00 UTC) -> Short 3
     - cron: '0 15 * * *'
-    # 5. Soat 00:00 UZT (19:00 UTC) -> Short 4
+    # 5. 00:00 UZT (19:00 UTC) -> Short 4
     - cron: '0 19 * * *'
   workflow_dispatch:
     inputs:
@@ -23,7 +23,7 @@ permissions:
   contents: write
 
 jobs:
-  produce-content:
+  produce-and-upload:
     runs-on: ubuntu-latest
     steps:
       - name: Repozitoriyani yuklash
@@ -46,14 +46,19 @@ jobs:
       - name: Kutubxonalarni o'rnatish
         run: pip install -r requirements.txt
 
-      - name: Belgilangan videoni render qilish
+      - name: Videolarni render qilish
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TARGET_MODE: ${{ github.event.inputs.target }}
         run: python run.py
 
-      - name: Tayyor videoni saqlash (Artifacts)
+      - name: YouTube'ga avtomat yuklash
+        env:
+          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
+        run: python upload_youtube.py
+
+      - name: Zaxira nusxasini saqlash (Artifacts)
         if: always()
         uses: actions/upload-artifact@v4
         with:
